@@ -1,0 +1,9 @@
+{
+  "name": "nearby-lan-toolbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Zero-dependency LAN clipboard, file transfer, device list, and speed test.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

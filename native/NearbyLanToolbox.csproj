@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!--
+    近邻 · 局域网工具箱 —— 单文件桌面程序构建工程
+
+    设计说明：
+      这是一个 .NET Framework 4.8 的 WinForms 程序。发行版只交付一个 exe，
+      实现方式是把手写壳代码需要的外部程序集作为「内嵌资源」打进 exe，
+      运行时由 WebViewRuntime.ResolveEmbeddedAssembly 从资源流直接 Assembly.Load。
+      因此下面每个 EmbeddedResource 的 LogicalName 都必须与 WebViewRuntime.cs
+      中硬编码的资源名严格一致，改名字会直接导致程序启动时报「缺少内嵌组件」。
+
+      外部程序集不随仓库提交，由 tools/fetch-deps.ps1 从 NuGet 还原到 ..\deps\。
+  -->
+
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{9F1C4B62-7D3A-4E58-9C21-5A6E0B8D4F17}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>NearbyLanToolbox</RootNamespace>
+    <AssemblyName>NearbyLanToolbox</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <LangVersion>7.3</LangVersion>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Deterministic>true</Deterministic>
+    <Utf8Output>true</Utf8Output>
+    <AssemblyTitle>近邻 · 局域网工具箱</AssemblyTitle>
+    <Product>NearbyLanToolbox</Product>
+    <Version>1.4.0</Version>
+    <FileVersion>1.4.0.0</FileVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\outputs\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>..\outputs\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <!--
+    .NET Framework 4.8 参考程序集定位见文件末尾的 Import。
+    说明：TargetFrameworkIdentifier 要等 Microsoft.Common.targets 求值后才可用，
+    因此那段配置必须放在末尾导入，不能写在这里。
+  -->
+
+  <!-- 源码 -->
+  <ItemGroup>
+    <Compile Include="MainForm.cs" />
+    <Compile Include="Server.cs" />
+    <Compile Include="WebViewRuntime.cs" />
+    <Compile Include="EmbeddedAssets.g.cs">
+      <AutoGen>true</AutoGen>
+      <DesignTime>true</DesignTime>
+      <DependentUpon>..\public\index.html</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <!-- 框架程序集（NoStdLib 时 mscorlib 必须显式引用） -->
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <!-- JavaScriptSerializer：Server.cs 解析 JSON 用，位于 System.Web.Extensions -->
+    <Reference Include="System.Web.Extensions" />
+    <!-- HttpUtility：Server.cs 处理 URL 编码/查询串用，位于 System.Web -->
+    <Reference Include="System.Web" />
+    <!-- GZipStream：EmbeddedAssets 内嵌前端资源用 -->
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <!-- 第三方程序集：仅编译期引用，不复制到输出目录（Private=false） -->
+  <ItemGroup>
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>..\deps\Microsoft.Web.WebView2.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.WinForms">
+      <HintPath>..\deps\Microsoft.Web.WebView2.WinForms.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="zxing">
+      <HintPath>..\deps\zxing.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    单文件关键：把依赖作为内嵌资源打进 exe。
+    LogicalName 必须与 WebViewRuntime.cs 中的资源名一一对应，不可改动。
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\deps\Microsoft.Web.WebView2.Core.dll">
+      <LogicalName>NearbyLanToolbox.Microsoft.Web.WebView2.Core.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\deps\Microsoft.Web.WebView2.WinForms.dll">
+      <LogicalName>NearbyLanToolbox.Microsoft.Web.WebView2.WinForms.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\deps\WebView2Loader.x64.dll">
+      <LogicalName>NearbyLanToolbox.WebView2Loader.x64.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\deps\WebView2Loader.x86.dll">
+      <LogicalName>NearbyLanToolbox.WebView2Loader.x86.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\deps\zxing.dll">
+      <LogicalName>NearbyLanToolbox.zxing.dll</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
+  <!--
+    .NET Framework 4.8 参考程序集定位（必须放在 Microsoft.CSharp.targets 之后）。
+
+    只装了 Build Tools、没装「.NET Framework 4.8 Developer Pack」的机器会报
+    MSB3644「找不到 .NETFramework,Version=v4.8 的引用程序集」。
+    tools/fetch-deps.ps1 会把官方 NuGet 包 Microsoft.NETFramework.ReferenceAssemblies.net48
+    解压到 ..\deps\reference-assemblies\，这里导入它自带的 targets，
+    无需管理员权限安装开发者包即可编译。
+
+    该 targets 会设置 TargetFrameworkRootPath / NoStdLib 并显式引用 mscorlib。
+    若本机已安装开发者包、或尚未执行依赖还原，则文件不存在，条件不成立，
+    自动回退到系统自带的引用程序集，两者互不影响。
+  -->
+  <Import Project="..\deps\reference-assemblies\Microsoft.NETFramework.ReferenceAssemblies.net48.targets"
+          Condition="Exists('..\deps\reference-assemblies\Microsoft.NETFramework.ReferenceAssemblies.net48.targets')" />
+</Project>

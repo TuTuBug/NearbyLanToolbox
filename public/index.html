@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8f5">
+  <title>近邻 · 局域网工具箱</title>
+  <link rel="stylesheet" href="/styles.css?v=20260714-2">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">近</div>
+        <div><strong>近邻</strong><span>LAN Toolbox</span></div>
+      </div>
+      <nav class="nav" aria-label="功能导航">
+        <button class="nav-item active" data-view="clipboard">
+          <span class="nav-icon">⌘</span><span>共享剪贴板</span>
+        </button>
+        <button class="nav-item" data-view="files">
+          <span class="nav-icon">↑</span><span>文件快传</span>
+        </button>
+        <button class="nav-item" data-view="devices">
+          <span class="nav-icon">◎</span><span>设备列表</span>
+        </button>
+        <button class="nav-item" data-view="chat">
+          <span class="nav-icon">聊</span><span>局域网聊天</span>
+        </button>
+        <button class="nav-item" data-view="speed">
+          <span class="nav-icon">↗</span><span>局域网测速</span>
+        </button>
+      </nav>
+      <div class="server-card">
+        <div class="status-line"><i></i><span>服务运行中</span></div>
+        <button id="address-button" class="address-button" title="复制访问地址">正在获取地址…</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="eyebrow">跨设备实时同步</p>
+          <h1 id="page-title">共享剪贴板</h1>
+        </div>
+        <div class="identity">
+          <span class="online-dot"></span>
+          <input id="device-name" maxlength="50" aria-label="设备名称" title="设备名称">
+        </div>
+      </header>
+
+      <section class="view active" id="view-clipboard">
+        <div class="clipboard-layout">
+          <div class="panel clipboard-editor">
+            <div class="panel-head">
+              <div>
+                <h2>公共剪贴板</h2>
+                <p>同一网络中的设备会实时看到这里的内容</p>
+              </div>
+              <span id="clipboard-count" class="quiet">0 字符</span>
+            </div>
+            <textarea id="clipboard-text" placeholder="在这里输入或粘贴文字、链接、验证码…"></textarea>
+            <div class="editor-actions">
+              <span id="clipboard-meta" class="quiet">尚未同步</span>
+              <div class="button-row">
+                <button id="copy-clipboard" class="button secondary">复制</button>
+                <button id="sync-clipboard" class="button primary">同步到局域网</button>
+              </div>
+            </div>
+          </div>
+          <aside class="panel activity-panel">
+            <div class="panel-head"><h2>连接状态</h2></div>
+            <div class="metric-large"><strong id="client-count">1</strong><span>台设备在线</span></div>
+            <div class="divider"></div>
+            <p class="small-label">当前访问地址</p>
+            <button id="clipboard-address" class="mono-link">获取中…</button>
+            <p class="note">在另一台设备的浏览器输入此地址，即可加入。</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-files">
+        <div class="panel upload-panel">
+          <input id="file-input" type="file" multiple hidden>
+          <button id="drop-zone" class="drop-zone">
+            <span class="drop-icon">↑</span>
+            <strong>拖放文件到这里</strong>
+            <span>或点击选择文件，单个文件最大 2 GB</span>
+          </button>
+          <div id="upload-queue" class="upload-queue"></div>
+        </div>
+        <div class="panel files-panel">
+          <div class="panel-head">
+            <div><h2>共享文件</h2><p>文件保存在运行服务的这台电脑上</p></div>
+            <button id="refresh-files" class="icon-button" title="刷新">↻</button>
+          </div>
+          <div id="file-list" class="file-list"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-devices">
+        <div class="summary-strip">
+          <div><span>工具箱在线</span><strong id="active-device-count">0</strong></div>
+          <div><span>网络缓存记录</span><strong id="arp-device-count">0</strong></div>
+          <div><span>本机名称</span><strong id="server-name">—</strong></div>
+          <button id="refresh-devices" class="button primary">重新扫描</button>
+        </div>
+        <div class="panel device-panel">
+          <div class="panel-head">
+            <div><h2>局域网设备</h2><p>在线状态来自工具箱连接；其他记录来自本机 ARP 缓存</p></div>
+            <span id="scan-time" class="quiet">尚未扫描</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>设备</th><th>IP 地址</th><th>MAC 地址</th><th>来源</th><th>状态</th></tr></thead>
+              <tbody id="device-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-chat">
+        <div class="panel chat-panel">
+          <div class="panel-head">
+            <div><h2>局域网聊天室</h2><p>消息仅保存在本次软件运行期间，最多保留最近 200 条</p></div>
+            <span id="chat-status" class="quiet">正在连接</span>
+          </div>
+          <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+          <form id="chat-form" class="chat-composer">
+            <textarea id="chat-input" maxlength="2000" rows="2" placeholder="输入消息，按 Enter 发送，Shift + Enter 换行"></textarea>
+            <button class="button primary" type="submit">发送</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="view" id="view-speed">
+        <div class="speed-layout">
+          <div class="panel speed-control">
+            <div class="panel-head"><div><h2>局域网链路测试</h2><p>数据只在当前设备与服务电脑之间传输</p></div></div>
+            <div class="size-control">
+              <span>测试数据量</span>
+              <div class="segments" id="speed-size">
+                <button data-mb="10">10 MB</button>
+                <button class="active" data-mb="25">25 MB</button>
+                <button data-mb="50">50 MB</button>
+              </div>
+            </div>
+            <button id="start-speed" class="speed-button"><span>开始测试</span><small>约需数秒</small></button>
+            <p id="speed-status" class="speed-status">准备就绪</p>
+          </div>
+          <div class="speed-results">
+            <div class="result-card download">
+              <span>下载</span><strong id="download-speed">—</strong><small>Mbps</small>
+              <div class="result-bar"><i id="download-bar"></i></div>
+            </div>
+            <div class="result-card upload">
+              <span>上传</span><strong id="upload-speed">—</strong><small>Mbps</small>
+              <div class="result-bar"><i id="upload-bar"></i></div>
+            </div>
+            <div class="result-card ping">
+              <span>延迟</span><strong id="ping-speed">—</strong><small>ms</small>
+              <div class="result-bar"><i id="ping-bar"></i></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="auth-overlay" class="auth-overlay" hidden>
+    <form id="auth-form" class="auth-dialog">
+      <div class="auth-mark">近</div>
+      <h2>请输入访问密码</h2>
+      <p>这台服务电脑已启用局域网访问保护。</p>
+      <input id="auth-password" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="one-time-code" placeholder="4 到 8 位数字">
+      <span id="auth-error" class="auth-error"></span>
+      <button class="button primary" type="submit">连接</button>
+    </form>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/app.js?v=20260714-2"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# 统一换行符处理，避免 Windows / macOS / Linux 协作时整文件 diff
+
+* text=auto
+
+# Windows 批处理必须 CRLF，否则某些情况下解析异常
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# PowerShell / C# / 工程文件统一 CRLF（与本项目开发环境一致）
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
+*.cs    text eol=crlf
+*.csproj text eol=crlf
+*.sln   text eol=crlf
+
+# 二进制资源
+*.ico   binary
+*.png   binary
+*.jpg   binary
+*.exe   binary
+*.dll   binary
+*.nupkg binary
+
+# 前端与文档保持 LF
+*.js    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+
+# Git 自动生成的内容，语言统计不纳入
+native/EmbeddedAssets.g.cs linguist-generated=true

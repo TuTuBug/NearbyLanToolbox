@@ -1,0 +1,26 @@
+# ---------- 构建产物 ----------
+outputs/
+obj/
+bin/
+*.pdb
+
+# ---------- 外部依赖（由 tools/fetch-deps.ps1 自动还原，不入库） ----------
+# WebView2 / ZXing.Net 程序集 + .NET Framework 4.8 参考程序集
+deps/
+
+# ---------- IDE / 编辑器 ----------
+.vs/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# ---------- 运行时数据 ----------
+# 接收文件的默认目录、访问密码等运行时产物
+data/
+*.log
+
+# ---------- 系统 ----------
+Thumbs.db
+desktop.ini
+.DS_Store
