@@ -1,0 +1,27 @@
+tag  : v1.0
+repo : TuTuBug/NearbyLanToolbox
+
+--- dist 内容 ---
+dist:
+total 96
+drwxr-xr-x 3 runner runner  4096 Sep 17 06:26 .
+drwxr-xr-x 3 runner runner  4096 Sep 17 06:26 ..
+-rw-r--r-- 1 runner runner 28880 Sep 17 06:26 NearbyLanToolbox-linux.tar.gz
+-rw-r--r-- 1 runner runner 33227 Sep 17 06:26 NearbyLanToolbox-mac.zip
+-rw-r--r-- 1 runner runner  9105 Sep 17 06:26 build.log
+drwxr-xr-x 2 runner runner  4096 Sep 17 06:26 outputs
+-rw-r--r-- 1 runner runner    87 Sep 17 06:26 release-checksum.txt
+
+dist/outputs:
+total 1484
+drwxr-xr-x 2 runner runner    4096 Sep 17 06:26 .
+drwxr-xr-x 3 runner runner    4096 Sep 17 06:26 ..
+-rw-r--r-- 1 runner runner 1507840 Sep 17 06:26 NearbyLanToolbox.exe
+
+--- 待上传文件 ---
+dist/NearbyLanToolbox-linux.tar.gz
+dist/NearbyLanToolbox-mac.zip
+dist/outputs/NearbyLanToolbox.exe
+dist/release-checksum.txt
+
+https://github.com/TuTuBug/NearbyLanToolbox/releases/tag/v1.0
