@@ -225,29 +225,74 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
-          set -e
-          echo "将要发布的 tag：$TAG"
-          echo "目标仓库：$REPO"
-          ls -la dist
-          if [ -z "$(ls -A dist)" ]; then
-            echo "没有任何构建产物，放弃发布"
-            exit 1
-          fi
-          # 必须显式指定 --repo：本 job 没有 checkout，工作目录不是 git 仓库，
-          # 不指定时 gh 会报「not a git repository」而失败。
-          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            echo "Release 已存在，改为覆盖上传产物"
-            gh release upload "$TAG" dist/* --clobber --repo "$REPO"
-          else
-            gh release create "$TAG" --repo "$REPO" \
-              --title "近邻 · 局域网工具箱 $TAG" \
-              --generate-notes \
-              dist/*
-          fi
+          {
+            echo "tag  : $TAG"
+            echo "repo : $REPO"
+            echo ""
+            echo "--- dist 内容 ---"
+            ls -laR dist
+            echo ""
+            # 只取普通文件。download-artifact 会把产物按它上传时的层级还原，
+            # 于是 exe 落在 dist/outputs/NearbyLanToolbox.exe。直接把 dist/* 交给 gh，
+            # 目录会被当成文件传而报错 —— 这正是本项目 Release 建不出来的原因。
+            # 用 find 拿文件列表，gh 会以文件名作为资产名，层级不影响最终结果。
+            FILES=$(find dist -type f ! -name '*.log' | sort)
+            echo "--- 待上传文件 ---"
+            echo "$FILES"
+            echo ""
+            if [ -z "$FILES" ]; then
+              echo "没有任何构建产物，放弃发布"
+              exit 1
+            fi
+            if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+              echo "Release 已存在，改为覆盖上传"
+              gh release upload "$TAG" $FILES --clobber --repo "$REPO"
+            else
+              # 自动生成发行说明；失败则回退到固定文案，避免整条发版流程被卡住。
+              gh release create "$TAG" --repo "$REPO" \
+                --title "近邻 · 局域网工具箱 $TAG" --generate-notes $FILES \
+              || gh release create "$TAG" --repo "$REPO" \
+                --title "近邻 · 局域网工具箱 $TAG" \
+                --notes "三平台发布包：Windows 单文件 exe、macOS zip、Linux tar.gz。使用说明见 README。" \
+                $FILES
+            fi
+          } 2>&1 | tee release.log
 
-      - name: 结果
+          echo ""
+          echo "--- 发布结果确认 ---"
+          if gh release view "$TAG" --repo "$REPO"; then
+            echo "发布成功"
+            exit 0
+          fi
+          echo "发布失败，完整日志见 ci-logs 分支的 release.log"
+          exit 1
+
+      # 发布失败时也要能看到现场。追加到 ci-logs 分支（Windows 构建日志已在里面），
+      # 不 force push，避免把另一个 job 写进去的日志冲掉。
+      - name: 导出发布日志到 ci-logs 分支
+        if: always()
+        continue-on-error: true
         env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag || github.ref_name }}
-          REPO: ${{ github.repository }}
-        run: gh release view "$TAG" --repo "$REPO"
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -e
+          DEST=/tmp/cilogs
+          rm -rf "$DEST"
+          if git clone -q --depth 1 --branch ci-logs \
+               "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$DEST" 2>/dev/null; then
+            echo "已拉取既有 ci-logs"
+          else
+            mkdir -p "$DEST"
+            cd "$DEST"
+            git init -q -b ci-logs
+            cd - >/dev/null
+          fi
+          cd "$DEST"
+          cp "$GITHUB_WORKSPACE/release.log" ./release.log 2>/dev/null || true
+          git config user.email "ci@users.noreply.github.com"
+          git config user.name "ci"
+          git add -A
+          git commit -q -m "release 日志（run $GITHUB_RUN_NUMBER）" || echo "(无改动)"
+          git push -q origin ci-logs
+          echo "已导出 release.log"

@@ -363,7 +363,7 @@ python tools/pack-release.py mac      # 只打 macOS 包
 并创建 Release，三个平台一次发齐：
 
 ```bash
-git tag v1.7 && git push origin v1.7
+git tag v1.7.1 && git push origin v1.7.1
 ```
 
 > **不要删除后重建同一个 tag**：已发布的 Release 会跟着 tag 一起消失（本项目踩过这个坑）。
