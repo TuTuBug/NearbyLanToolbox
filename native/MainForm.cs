@@ -16,8 +16,8 @@ using ZXing.QrCode;
 [assembly: AssemblyDescription("局域网共享剪贴板、文件快传、设备列表、聊天室和测速工具")]
 [assembly: AssemblyCompany("Nearby LAN Toolbox")]
 [assembly: AssemblyProduct("近邻 · 局域网工具箱")]
-[assembly: AssemblyVersion("1.4.0.0")]
-[assembly: AssemblyFileVersion("1.4.0.0")]
+[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyFileVersion("1.0.0.0")]
 
 namespace NearbyLanToolbox
 {

@@ -56,7 +56,7 @@
 | **macOS** | **[⬇ NearbyLanToolbox-mac.zip](https://github.com/TuTuBug/NearbyLanToolbox/releases/latest/download/NearbyLanToolbox-mac.zip)** | 解压后**双击 `start-mac.command`**，浏览器自动打开工具箱 |
 | **Linux** | **[⬇ NearbyLanToolbox-linux.tar.gz](https://github.com/TuTuBug/NearbyLanToolbox/releases/latest/download/NearbyLanToolbox-linux.tar.gz)** | 解压后执行 `./start-linux.sh` |
 
-历史版本见 [Releases](https://github.com/TuTuBug/NearbyLanToolbox/releases)。
+下载页：[Releases](https://github.com/TuTuBug/NearbyLanToolbox/releases)。
 
 macOS / Linux 包唯一的前置条件是 **Node.js 18 或更高**（一次性安装），包本身**零第三方依赖，
 不需要 `npm install`**。连 Node 都没装也没关系：`start-mac.command` 会检测到并自动打开
@@ -363,7 +363,7 @@ python tools/pack-release.py mac      # 只打 macOS 包
 并创建 Release，三个平台一次发齐：
 
 ```bash
-git tag v1.7.2 && git push origin v1.7.2
+git tag v1.0 && git push origin v1.0
 ```
 
 > **不要删除后重建同一个 tag**：已发布的 Release 会跟着 tag 一起消失（本项目踩过这个坑）。

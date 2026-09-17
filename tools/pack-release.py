@@ -121,7 +121,7 @@ def human(size: int) -> str:
 def main() -> int:
     requested = {arg.lower() for arg in sys.argv[1:]} or {"mac", "linux"}
 
-    version = "v1.6.0"
+    version = "v1.0.0"
     package_json = (ROOT / "package.json").read_text(encoding="utf-8")
     for line in package_json.splitlines():
         if '"version"' in line:
