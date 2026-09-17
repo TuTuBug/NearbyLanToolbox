@@ -74,26 +74,57 @@ jobs:
             }
           }
 
+      # 这一步在 CI 上会失败（本地怎么都复现不出来，日志又受认证限制拿不到），
+      # 所以不阻塞流程：下面用 Node 做独立校验，只要 g.cs 与 public/ 一致就继续编译。
       - name: 2/3 内嵌前端资源
+        continue-on-error: true
         shell: powershell
         run: |
           $log = "02-embed-assets.log"
+          $err = ""
           try {
             & .\tools\embed-assets.ps1 *>&1 | Tee-Object -FilePath $log
           } catch {
+            $err = $_.Exception.Message
             ($_ | Out-String) | Add-Content $log
-            Write-Host "===== 内嵌前端资源失败 ====="
-            Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 50 | Write-Host
-            exit 1
           }
-          if (-not (Test-Path "native\EmbeddedAssets.g.cs")) { exit 1 }
+
+          if ((-not $err) -and (Test-Path "native\EmbeddedAssets.g.cs")) {
+            Write-Host "资源内嵌完成"
+            exit 0
+          }
+
+          Write-Host "资源内嵌未完成，交给后续校验判断能否继续编译"
+          Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40 | Write-Host
+
+          # 写 job summary：这部分能通过 check-run 接口公开读到，
+          # 便于在没有 Actions 日志权限的情况下定位。
+          if ($env:GITHUB_STEP_SUMMARY) {
+            "### 资源内嵌步骤未完成" | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
+            "异常：$err" | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
+            '```text' | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
+            Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40 | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
+            '```' | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
+          }
+
+          $oneLine = (($err -replace "[\r\n%]", " ")).Trim()
+          if ($oneLine.Length -gt 180) { $oneLine = $oneLine.Substring(0, 180) }
+          Write-Host "::error title=embed-assets-failed::$oneLine"
+          exit 1
+
+      # 独立兜底：确认 exe 会嵌进去的前端，就是 public/ 里当前的版本。
+      # 用 Node 而不是 PowerShell —— 出问题的恰恰是那个运行时，
+      # 校验必须站在一个稳定的运行时上才有意义。
+      - name: 校验内嵌资源与 public 一致
+        shell: bash
+        run: node tools/verify-embedded-assets.js
 
       - name: 3/3 编译
         shell: powershell
         run: |
           $log = "03-msbuild.log"
           try {
-            & .\build.ps1 -SkipDeps *>&1 | Tee-Object -FilePath $log
+            & .\build.ps1 -SkipDeps -SkipEmbed *>&1 | Tee-Object -FilePath $log
           } catch {
             ($_ | Out-String) | Add-Content $log
           }

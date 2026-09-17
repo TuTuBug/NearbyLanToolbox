@@ -15,6 +15,7 @@ param(
     [string]$Configuration = "Release",
     [string]$Proxy = "",
     [switch]$SkipDeps,
+    [switch]$SkipEmbed,
     [string]$MSBuildPath = ""
 )
 
@@ -111,12 +112,25 @@ foreach ($f in $required) {
 # ---------- 步骤 1.5：重新内嵌前端资源 ----------
 # 改了 public\index.html、app.js、styles.css 之后，必须重新生成 EmbeddedAssets.g.cs，
 # 否则编译出来的 exe 里跑的仍是旧页面。这一步幂等且很快，所以每次构建都执行。
-Write-Step "同步前端资源（public\ -> native\EmbeddedAssets.g.cs）"
-$embed = Join-Path $RepoRoot "tools\embed-assets.ps1"
-try {
-    & $embed -RepoRoot $RepoRoot
-} catch {
-    throw "前端资源内嵌失败：$($_.Exception.Message)"
+if ($SkipEmbed) {
+    # 跳过重新生成，直接用仓库里已有的 EmbeddedAssets.g.cs。
+    # 用途：CI 上资源内嵌步骤受环境影响失败时，仍能编译出 exe；
+    # 前端是否与 public\ 同步由 tools\verify-embedded-assets.js 单独校验。
+    Write-Step "跳过前端资源内嵌（-SkipEmbed）"
+    $existing = Join-Path $RepoRoot "native\EmbeddedAssets.g.cs"
+    if (-not (Test-Path $existing)) {
+        throw "指定了 -SkipEmbed，但 native\EmbeddedAssets.g.cs 不存在，无法编译。"
+    }
+    Write-Host "使用仓库中已有的：$existing" -ForegroundColor DarkGray
+}
+else {
+    Write-Step "同步前端资源（public\ -> native\EmbeddedAssets.g.cs）"
+    $embed = Join-Path $RepoRoot "tools\embed-assets.ps1"
+    try {
+        & $embed -RepoRoot $RepoRoot
+    } catch {
+        throw "前端资源内嵌失败：$($_.Exception.Message)"
+    }
 }
 
 # ---------- 步骤 2：编译 ----------
