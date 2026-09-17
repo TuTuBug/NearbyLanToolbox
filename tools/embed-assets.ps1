@@ -19,6 +19,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# 显式加载压缩相关程序集。
+# 个别 Windows Server 环境下 PowerShell 5.1 不会自动解析 System.IO.Compression
+# 里的类型，表现为 New-Object System.IO.Compression.GZipStream 报「找不到类型」，
+# 而同样版本的 PowerShell 在开发机上一切正常 —— 属于环境差异，先加载再使用最稳。
+Add-Type -AssemblyName System.IO.Compression -ErrorAction SilentlyContinue
+Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+
 if (-not $RepoRoot) {
     $RepoRoot = Split-Path -Parent $PSScriptRoot
 }

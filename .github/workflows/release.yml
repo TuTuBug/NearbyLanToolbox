@@ -19,6 +19,9 @@ on:
 
 permissions:
   contents: write
+  # 构建失败时把日志发到 Issue（Issue 公开可读，而 Actions 的日志接口
+  # 对公开仓库也要求认证，外部无法直接获取）
+  issues: write
 
 jobs:
   # ---------- Windows：编译单文件 exe ----------
@@ -129,6 +132,8 @@ jobs:
       - name: 失败诊断
         if: failure()
         shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $combined = @()
           foreach ($f in @("01-fetch-deps.log", "02-embed-assets.log", "03-msbuild.log")) {
@@ -148,17 +153,17 @@ jobs:
             '```' | Out-File -FilePath $summaryPath -Append -Encoding utf8
           }
 
-          $combined | Out-File -FilePath ci-diagnostics.log -Encoding utf8
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # 发到 Issue：公开可读，外部无需 token 也能拿到完整日志
+          $body = @("# Windows 构建诊断", "", "tag: $env:GITHUB_REF_NAME", "", '```text') +
+                  $combined + @('```')
+          $body | Out-File -FilePath ci-diagnostics.md -Encoding utf8
           try {
-            git checkout -B ci-diagnostics
-            git add -f ci-diagnostics.log
-            git commit -m "CI 构建日志（自动生成，可随时覆盖）"
-            git push -f origin ci-diagnostics
-            Write-Host "日志已推到 ci-diagnostics 分支"
+            gh issue create --repo $env:GITHUB_REPOSITORY `
+              --title "[CI 诊断] Windows 构建失败（$env:GITHUB_REF_NAME）" `
+              --body-file ci-diagnostics.md
+            Write-Host "诊断日志已发到 Issue"
           } catch {
-            Write-Host "推送诊断分支失败（不影响诊断本身）：$_"
+            Write-Host "创建诊断 Issue 失败：$_"
           }
           exit 0
 
