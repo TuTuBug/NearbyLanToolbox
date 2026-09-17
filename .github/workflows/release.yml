@@ -94,6 +94,37 @@ jobs:
             release-checksum.txt
             build-output.log
 
+      # 构建失败时把日志暴露到两个「无需登录也能读」的地方：
+      #   1) job summary —— 直接显示在 run 页面上
+      #   2) ci-diagnostics 分支 —— 可以用 raw 链接或 API 取全文
+      # 之所以这么绕：Actions 的 job 日志接口对公开仓库也要求认证，
+      # 而注解（::error::）实测容易被截断或忽略。
+      - name: 失败诊断
+        if: failure()
+        shell: powershell
+        run: |
+          $log = "build-output.log"
+          $lines = if (Test-Path $log) { @(Get-Content $log) } else { @("（没有生成 build-output.log）") }
+          Write-Host "日志共 $($lines.Count) 行"
+
+          $summaryPath = $env:GITHUB_STEP_SUMMARY
+          if ($summaryPath) {
+            "## Windows 构建失败日志" | Out-File -FilePath $summaryPath -Append -Encoding utf8
+            "" | Out-File -FilePath $summaryPath -Append -Encoding utf8
+            '```' | Out-File -FilePath $summaryPath -Append -Encoding utf8
+            $lines | Select-Object -Last 150 | Out-File -FilePath $summaryPath -Append -Encoding utf8
+            '```' | Out-File -FilePath $summaryPath -Append -Encoding utf8
+          }
+
+          $lines | Out-File -FilePath ci-diagnostics.log -Encoding utf8
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B ci-diagnostics
+          git add -f ci-diagnostics.log
+          git commit -m "CI 构建日志（自动生成，可随时覆盖）"
+          git push -f origin ci-diagnostics
+          exit 0
+
   # ---------- macOS / Linux：打包跨平台发布包 ----------
   unix-packages:
     name: 打包 macOS / Linux 发布包
