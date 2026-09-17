@@ -60,7 +60,15 @@ console.log("");
 
 test("设置目录: Windows 用 LOCALAPPDATA", () => {
   const dir = defaultSettingsDirectory("win32", { LOCALAPPDATA: "C:\\Users\\me\\AppData\\Local" }, "/home/me");
-  assert.strictEqual(dir, path.join("C:\\Users\\me\\AppData\\Local", "NearbyLanToolbox"));
+  // 必须用 path.win32.join：被断言的是「Windows 上的路径」，
+  // 若用当前平台的 path.join，在 Linux/macOS 上跑测试会得到正斜杠而误判失败。
+  assert.strictEqual(dir, path.win32.join("C:\\Users\\me\\AppData\\Local", "NearbyLanToolbox"));
+  assert.ok(!dir.includes("/"), `Windows 路径不应含正斜杠：${dir}`);
+});
+
+test("设置目录: Windows 未设 LOCALAPPDATA 时退回 ~/AppData/Local", () => {
+  const dir = defaultSettingsDirectory("win32", {}, "C:\\Users\\me");
+  assert.strictEqual(dir, "C:\\Users\\me\\AppData\\Local\\NearbyLanToolbox");
 });
 
 test("设置目录: macOS 用 ~/Library/Application Support", () => {

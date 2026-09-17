@@ -28,15 +28,55 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 记录构建环境
+        shell: powershell
+        run: |
+          Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            & $vswhere -latest -products * -property installationVersion
+            & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe"
+          } else {
+            Write-Host "没有 vswhere"
+          }
+          $refPack = "${env:ProgramFiles(x86)}\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8"
+          Write-Host "net48 Developer Pack 存在: $(Test-Path $refPack)"
+
+      # 注意：用 Windows PowerShell 5.1（powershell）而不是 pwsh 7。
+      # 本项目构建脚本一直在 5.1 下开发验证，且 fetch-deps.ps1 依赖
+      # System.Net.WebClient + System.IO.Compression，跨运行时行为差异会带来额外风险。
       - name: 编译单文件 exe
-        shell: pwsh
-        run: ./build.ps1
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Continue"
+          $log = "build-output.log"
+          try {
+            & .\build.ps1 *>&1 | Tee-Object -FilePath $log
+          } catch {
+            ($_ | Out-String) | Add-Content $log
+          }
+
+          if (Test-Path "outputs\NearbyLanToolbox.exe") { exit 0 }
+
+          Write-Host "===== 构建失败，输出末尾 ====="
+          $lines = @(Get-Content $log -ErrorAction SilentlyContinue)
+          if ($lines.Count -eq 0) { $lines = @("（没有任何输出）") }
+          $lines | Select-Object -Last 60 | ForEach-Object { Write-Host $_ }
+
+          # 把末尾若干行输出成注解：既便于在网页上直接看到，也能通过公开 API 读取
+          $annotations = $lines |
+            Where-Object { $_.Trim() } |
+            Select-Object -Last 15 |
+            ForEach-Object { ($_ -replace "%", "%25") -replace "\r", "" }
+          foreach ($line in $annotations) {
+            Write-Host "::error title=构建失败::$line"
+          }
+          exit 1
 
       - name: 校验产物并记录校验和
-        shell: pwsh
+        shell: powershell
         run: |
-          $exe = "outputs/NearbyLanToolbox.exe"
-          if (-not (Test-Path $exe)) { throw "找不到产物 $exe" }
+          $exe = "outputs\NearbyLanToolbox.exe"
           $info = Get-Item $exe
           Write-Host "产物：$exe"
           Write-Host ("大小：{0:N0} 字节" -f $info.Length)
@@ -52,6 +92,7 @@ jobs:
           path: |
             outputs/NearbyLanToolbox.exe
             release-checksum.txt
+            build-output.log
 
   # ---------- macOS / Linux：打包跨平台发布包 ----------
   unix-packages:
