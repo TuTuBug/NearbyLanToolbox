@@ -96,25 +96,25 @@ jobs:
             ls -la outputs/ 2>&1 || echo "(outputs 不存在)"
           } 2>&1 | tee build.log
 
+          # 产物校验与校验和也放在这条 bash 流程里。
+          # 之前单独用 PowerShell 步骤做这件事时它莫名失败，而关键路径上多一个
+          # 运行时就是多一个变量 —— 这里只用 bash 自带工具，行为完全可预期。
           echo ""
-          if [ -f outputs/NearbyLanToolbox.exe ]; then
-            echo "结论：构建成功"
-            exit 0
+          echo "########## 产物校验 ##########" | tee -a build.log
+          if [ ! -f outputs/NearbyLanToolbox.exe ]; then
+            echo "结论：构建失败，完整日志见 ci-logs 分支的 build.log" | tee -a build.log
+            exit 1
           fi
-          echo "结论：构建失败，日志见 ci-logs 分支的 build.log"
-          exit 1
-
-      - name: 校验产物并记录校验和
-        if: success()
-        shell: powershell
-        run: |
-          $exe = "outputs\NearbyLanToolbox.exe"
-          $info = Get-Item $exe
-          Write-Host ("大小：{0:N0} 字节" -f $info.Length)
-          if ($info.Length -lt 500KB) { throw "产物过小，构建可能不完整" }
-          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
-          "$hash  NearbyLanToolbox.exe" | Out-File -Encoding utf8 release-checksum.txt
-          Write-Host "SHA256：$hash"
+          SIZE=$(stat -c%s outputs/NearbyLanToolbox.exe)
+          echo "NearbyLanToolbox.exe：$SIZE 字节" | tee -a build.log
+          if [ "$SIZE" -lt 512000 ]; then
+            echo "结论：产物过小，构建不完整" | tee -a build.log
+            exit 1
+          fi
+          sha256sum outputs/NearbyLanToolbox.exe \
+            | awk '{print $1"  NearbyLanToolbox.exe"}' > release-checksum.txt
+          echo "SHA256：$(cat release-checksum.txt)" | tee -a build.log
+          echo "结论：构建成功" | tee -a build.log
 
       - uses: actions/upload-artifact@v4
         if: always()
