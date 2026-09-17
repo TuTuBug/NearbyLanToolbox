@@ -115,26 +115,27 @@ foreach ($pkg in $packages) {
 # ---------- 2) .NET Framework 4.8 参考程序集 ----------
 Write-Host "==> .NET Framework 4.8 参考程序集"
 
+# 始终使用包内自带的参考程序集，不再因为「本机装了 Developer Pack」而跳过。
+# 原因：跳过会让构建结果依赖本机参考程序集的版本 —— 本机有 v4.8 目录、
+# 而 CI 镜像上只有 v4.8.1 目录时，MSBuild 会在很深的地方报 MSB3644，极难定位。
+# 自带一份的代价只有约 10 MB（首次下载，之后走缓存），换来任意机器上结果一致。
 $installedPack = "${env:ProgramFiles(x86)}\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8"
-$localPack = Join-Path $DepsDir "reference-assemblies\.NETFramework\v4.8"
-
 if (Test-Path $installedPack) {
-    Write-Host "  [skip]  本机已安装 Developer Pack，无需下载" -ForegroundColor DarkGray
+    Write-Host "  [info]  本机已装 Developer Pack，仍使用包内参考程序集以保证跨机器一致" -ForegroundColor DarkGray
 }
-else {
-    $refNupkg = Join-Path $CacheDir "refasm.net48.nupkg"
-    Get-Nupkg -Url "https://www.nuget.org/api/v2/package/Microsoft.NETFramework.ReferenceAssemblies.net48/1.0.3" `
-              -Destination $refNupkg
 
-    Expand-Nupkg -Nupkg $refNupkg -Destination $WorkDir
+$refNupkg = Join-Path $CacheDir "refasm.net48.nupkg"
+Get-Nupkg -Url "https://www.nuget.org/api/v2/package/Microsoft.NETFramework.ReferenceAssemblies.net48/1.0.3" `
+          -Destination $refNupkg
 
-    $refOut = Join-Path $DepsDir "reference-assemblies"
-    if (Test-Path $refOut) { Remove-Item $refOut -Recurse -Force }
-    Copy-Item (Join-Path $WorkDir "build") $refOut -Recurse -Force
+Expand-Nupkg -Nupkg $refNupkg -Destination $WorkDir
 
-    $count = (Get-ChildItem (Join-Path $refOut ".NETFramework\v4.8") -Filter *.dll).Count
-    Write-Host ("  [ok]    reference-assemblies\.NETFramework\v4.8  ({0} 个参考程序集)" -f $count)
-}
+$refOut = Join-Path $DepsDir "reference-assemblies"
+if (Test-Path $refOut) { Remove-Item $refOut -Recurse -Force }
+Copy-Item (Join-Path $WorkDir "build") $refOut -Recurse -Force
+
+$count = (Get-ChildItem (Join-Path $refOut ".NETFramework\v4.8") -Filter *.dll).Count
+Write-Host ("  [ok]    reference-assemblies\.NETFramework\v4.8  ({0} 个参考程序集)" -f $count)
 
 Remove-Item $WorkDir -Recurse -Force -ErrorAction SilentlyContinue
 

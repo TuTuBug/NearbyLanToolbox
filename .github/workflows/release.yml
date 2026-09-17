@@ -160,28 +160,34 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag || github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
           set -e
           echo "将要发布的 tag：$TAG"
+          echo "目标仓库：$REPO"
           ls -la dist
           if [ -z "$(ls -A dist)" ]; then
             echo "没有任何构建产物，放弃发布"
             exit 1
           fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          # 必须显式指定 --repo：本 job 没有 checkout，工作目录不是 git 仓库，
+          # 不指定时 gh 会报「not a git repository」而失败。
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
             echo "Release 已存在，改为覆盖上传产物"
-            gh release upload "$TAG" dist/* --clobber
+            gh release upload "$TAG" dist/* --clobber --repo "$REPO"
           else
-            gh release create "$TAG" dist/* \
+            gh release create "$TAG" --repo "$REPO" \
               --title "$TAG" \
-              --generate-notes
+              --generate-notes \
+              dist/*
           fi
 
       - name: 结果
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag || github.ref_name }}
-        run: gh release view "$TAG"
+          REPO: ${{ github.repository }}
+        run: gh release view "$TAG" --repo "$REPO"
 
   # dry_run 时的兜底：构建完就直接结束，产物留在 Actions 页面上可下载
   summary:
