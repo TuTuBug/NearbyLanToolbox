@@ -1,16 +1,21 @@
-name: Release
+name: Build & Release
 
-# 打 v* 形式的 tag 时自动发版：Windows exe + macOS zip + Linux tar.gz 一次发齐。
-# 也可以在 Actions 页面手动触发，用于验证构建链路（勾选 dry_run 时不创建 Release）。
+# 触发方式：
+#   · push 到 main      -> 只构建、不发版（用于验证构建链路）
+#   · push v* 标签      -> 构建 + 创建/更新 Release
+#   · 手动 workflow_dispatch -> 可指定 tag，勾选 dry_run 时只构建不发版
+#
+# 为什么不在这里删标签重建：反复删除并重建同一个 tag 会让已发布的 Release
+# 一起消失（本项目踩过这个坑）。要重新发版请推新 tag，或走手动触发。
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
-        description: "要发布/更新的 tag（如 v1.6）"
+        description: "要发布/更新的 tag（如 v1.7）"
         required: true
       dry_run:
         description: "只构建，不创建 Release"
@@ -19,102 +24,95 @@ on:
 
 permissions:
   contents: write
-  # 构建失败时把日志发到 Issue（Issue 公开可读，而 Actions 的日志接口
-  # 对公开仓库也要求认证，外部无法直接获取）
-  issues: write
 
 jobs:
   # ---------- Windows：编译单文件 exe ----------
   windows-exe:
     name: 构建 Windows exe
     runs-on: windows-latest
-    # exe 构建失败不应该挡住 mac / linux 发布。
-    # 失败原因靠「把构建拆成三步」定位：每一步的成败在页面上直接可见，
-    # 不依赖日志（Actions 的日志接口对公开仓库也要求认证，外部拿不到）。
+    # exe 构建失败不阻塞 mac / linux 发布。
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
+      # 环境信息写进 job summary。
+      # Actions 的 job 日志接口对公开仓库也要求认证，外部拿不到；
+      # job summary 是少数无需登录即可读取的通道，诊断必须依赖它。
       - name: 记录构建环境
-        shell: powershell
+        shell: bash
         run: |
-          Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
-          Write-Host "OS: $((Get-CimInstance Win32_OperatingSystem).Caption)"
-          Write-Host "区域设置代码页: $((Get-Culture).TextInfo.ANSICodePage)"
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          if (Test-Path $vswhere) {
-            & $vswhere -latest -products * -property installationVersion
-            & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe"
-          } else {
-            Write-Host "没有 vswhere"
-          }
-          $refPack = "${env:ProgramFiles(x86)}\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8"
-          Write-Host "net48 Developer Pack 存在: $(Test-Path $refPack)"
+          {
+            echo "## 构建环境"
+            echo ""
+            echo '```text'
+            echo "runner OS : $RUNNER_OS"
+            echo "repo      : $GITHUB_REPOSITORY"
+            echo "ref       : $GITHUB_REF  ($GITHUB_REF_TYPE)"
+            echo "sha       : $GITHUB_SHA"
+            echo ""
+            echo "--- 顶层目录 ---"
+            ls -la
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      # 注意：用系统自带的 Windows PowerShell 5.1（powershell），不是 PowerShell 7。
-      # 本项目构建脚本一直在 5.1 下开发验证，fetch-deps 依赖 System.Net.WebClient
-      # 与 System.IO.Compression，跨运行时差异会带来额外变量。
-
+      # 用 Start-Process 而不是 `& script | Tee-Object`：
+      # PowerShell 5.1 的流捕获在脚本内部 throw 时会丢内容，导致「日志是空的、
+      # 只看到失败」这种没法定位的局面。Start-Process 能把 stdout / stderr 和
+      # 真实退出码分别落到文件里，可靠得多。
       - name: 1/3 还原依赖
         shell: powershell
         run: |
-          $log = "01-fetch-deps.log"
-          try {
-            & .\tools\fetch-deps.ps1 *>&1 | Tee-Object -FilePath $log
-          } catch {
-            ($_ | Out-String) | Add-Content $log
-            Write-Host "===== 依赖还原失败 ====="
-            Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 50 | Write-Host
-            exit 1
-          }
-          foreach ($f in @("deps\zxing.dll", "deps\Microsoft.Web.WebView2.Core.dll", "deps\reference-assemblies\.NETFramework\v4.8\mscorlib.dll")) {
-            if (-not (Test-Path $f)) {
-              Write-Host "缺少 $f"
-              exit 1
-            }
-          }
+          $out = "01-fetch-deps.out.log"
+          $err = "01-fetch-deps.err.log"
+          $p = Start-Process -FilePath "powershell" -NoNewWindow -Wait -PassThru `
+                -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File",".\tools\fetch-deps.ps1") `
+                -RedirectStandardOutput $out -RedirectStandardError $err
+          Write-Host "fetch-deps 退出码: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { exit 1 }
 
-      # 这一步在 CI 上会失败（本地怎么都复现不出来，日志又受认证限制拿不到），
-      # 所以不阻塞流程：下面用 Node 做独立校验，只要 g.cs 与 public/ 一致就继续编译。
+      - name: 检查依赖布局
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## 依赖布局"
+            echo ""
+            echo '```text'
+            echo "--- deps 顶层 ---"
+            ls -la deps/ 2>&1 || echo "(deps 不存在)"
+            echo ""
+            echo "--- deps/*.dll ---"
+            ls -la deps/*.dll 2>&1 || echo "(没有 dll)"
+            echo ""
+            echo "--- reference-assemblies 下的 targets 文件 ---"
+            find deps/reference-assemblies -name "*.targets" 2>/dev/null | head -20 || echo "(无)"
+            echo ""
+            echo "--- reference-assemblies 下的 mscorlib.dll ---"
+            find deps/reference-assemblies -name "mscorlib.dll" 2>/dev/null | head -20 || echo "(无)"
+            echo ""
+            echo "--- reference-assemblies 前 3 层 ---"
+            find deps/reference-assemblies -maxdepth 3 2>/dev/null | head -40 || echo "(无)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: 2/3 内嵌前端资源
-        continue-on-error: true
         shell: powershell
         run: |
-          $log = "02-embed-assets.log"
-          $err = ""
-          try {
-            & .\tools\embed-assets.ps1 *>&1 | Tee-Object -FilePath $log
-          } catch {
-            $err = $_.Exception.Message
-            ($_ | Out-String) | Add-Content $log
+          $out = "02-embed-assets.out.log"
+          $err = "02-embed-assets.err.log"
+          $p = Start-Process -FilePath "powershell" -NoNewWindow -Wait -PassThru `
+                -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File",".\tools\embed-assets.ps1") `
+                -RedirectStandardOutput $out -RedirectStandardError $err
+          Write-Host "embed-assets 退出码: $($p.ExitCode)"
+          if (-not (Test-Path "native\EmbeddedAssets.g.cs")) {
+            Write-Host "未生成 native\EmbeddedAssets.g.cs"
+            exit 1
           }
-
-          if ((-not $err) -and (Test-Path "native\EmbeddedAssets.g.cs")) {
-            Write-Host "资源内嵌完成"
-            exit 0
-          }
-
-          Write-Host "资源内嵌未完成，交给后续校验判断能否继续编译"
-          Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40 | Write-Host
-
-          # 写 job summary：这部分能通过 check-run 接口公开读到，
-          # 便于在没有 Actions 日志权限的情况下定位。
-          if ($env:GITHUB_STEP_SUMMARY) {
-            "### 资源内嵌步骤未完成" | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
-            "异常：$err" | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
-            '```text' | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
-            Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40 | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
-            '```' | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_STEP_SUMMARY
-          }
-
-          $oneLine = (($err -replace "[\r\n%]", " ")).Trim()
-          if ($oneLine.Length -gt 180) { $oneLine = $oneLine.Substring(0, 180) }
-          Write-Host "::error title=embed-assets-failed::$oneLine"
-          exit 1
+          $info = Get-Item "native\EmbeddedAssets.g.cs"
+          Write-Host ("EmbeddedAssets.g.cs: {0:N0} 字节" -f $info.Length)
 
       # 独立兜底：确认 exe 会嵌进去的前端，就是 public/ 里当前的版本。
-      # 用 Node 而不是 PowerShell —— 出问题的恰恰是那个运行时，
-      # 校验必须站在一个稳定的运行时上才有意义。
+      # 用 Node 而不是 PowerShell —— 出问题的恰恰是那个运行时。
       - name: 校验内嵌资源与 public 一致
         shell: bash
         run: node tools/verify-embedded-assets.js
@@ -122,23 +120,25 @@ jobs:
       - name: 3/3 编译
         shell: powershell
         run: |
-          $log = "03-msbuild.log"
-          try {
-            & .\build.ps1 -SkipDeps -SkipEmbed *>&1 | Tee-Object -FilePath $log
-          } catch {
-            ($_ | Out-String) | Add-Content $log
+          $out = "03-msbuild.out.log"
+          $err = "03-msbuild.err.log"
+          $p = Start-Process -FilePath "powershell" -NoNewWindow -Wait -PassThru `
+                -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File",".\build.ps1","-SkipDeps","-SkipEmbed") `
+                -RedirectStandardOutput $out -RedirectStandardError $err
+          Write-Host "build.ps1 退出码: $($p.ExitCode)"
+          if (Test-Path "outputs\NearbyLanToolbox.exe") {
+            Write-Host ("编译成功：{0:N0} 字节" -f (Get-Item "outputs\NearbyLanToolbox.exe").Length)
+            exit 0
           }
-          if (Test-Path "outputs\NearbyLanToolbox.exe") { exit 0 }
-          Write-Host "===== 编译失败，输出末尾 ====="
-          Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 60 | Write-Host
+          Write-Host "编译未产出 exe"
           exit 1
 
       - name: 校验产物并记录校验和
+        if: success()
         shell: powershell
         run: |
           $exe = "outputs\NearbyLanToolbox.exe"
           $info = Get-Item $exe
-          Write-Host "产物：$exe"
           Write-Host ("大小：{0:N0} 字节" -f $info.Length)
           if ($info.Length -lt 500KB) { throw "产物过小，构建可能不完整" }
           $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
@@ -153,50 +153,15 @@ jobs:
           path: |
             outputs/NearbyLanToolbox.exe
             release-checksum.txt
-            01-fetch-deps.log
-            02-embed-assets.log
-            03-msbuild.log
+            *.log
 
-      # 失败时把日志暴露成「无需登录也能读」的形式。
-      # 之所以这么绕：Actions 的 job 日志接口对公开仓库也要求认证，
-      # 而 ::error:: 注解实测容易被忽略或截断。
-      - name: 失败诊断
-        if: failure()
-        shell: powershell
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $combined = @()
-          foreach ($f in @("01-fetch-deps.log", "02-embed-assets.log", "03-msbuild.log")) {
-            if (Test-Path $f) {
-              $combined += "===== $f ====="
-              $combined += @(Get-Content $f)
-            }
-          }
-          if ($combined.Count -eq 0) { $combined = @("（没有生成任何日志）") }
-
-          $summaryPath = $env:GITHUB_STEP_SUMMARY
-          if ($summaryPath) {
-            "## Windows 构建失败日志" | Out-File -FilePath $summaryPath -Append -Encoding utf8
-            "" | Out-File -FilePath $summaryPath -Append -Encoding utf8
-            '```text' | Out-File -FilePath $summaryPath -Append -Encoding utf8
-            $combined | Select-Object -Last 200 | Out-File -FilePath $summaryPath -Append -Encoding utf8
-            '```' | Out-File -FilePath $summaryPath -Append -Encoding utf8
-          }
-
-          # 发到 Issue：公开可读，外部无需 token 也能拿到完整日志
-          $body = @("# Windows 构建诊断", "", "tag: $env:GITHUB_REF_NAME", "", '```text') +
-                  $combined + @('```')
-          $body | Out-File -FilePath ci-diagnostics.md -Encoding utf8
-          try {
-            gh issue create --repo $env:GITHUB_REPOSITORY `
-              --title "[CI 诊断] Windows 构建失败（$env:GITHUB_REF_NAME）" `
-              --body-file ci-diagnostics.md
-            Write-Host "诊断日志已发到 Issue"
-          } catch {
-            Write-Host "创建诊断 Issue 失败：$_"
-          }
-          exit 0
+      # 无论成败都把各步骤日志尾部写进 job summary —— 这是无认证条件下
+      # 唯一能稳定读到构建现场的方式。
+      - name: 构建诊断（写入 job summary）
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: node tools/ci-diagnostics.js
 
   # ---------- macOS / Linux：打包跨平台发布包 ----------
   unix-packages:
@@ -249,10 +214,12 @@ jobs:
           path: outputs/*
 
   # ---------- 汇总发版 ----------
+  # 只在「标签触发」或「手动触发」时发版；push 到 main 的构建不发版，
+  # 方便反复验证构建链路而不制造 Release。
   release:
     name: 创建 Release
     needs: [windows-exe, unix-packages]
-    if: always() && !inputs.dry_run
+    if: always() && ((github.event_name == 'push' && github.ref_type == 'tag') || (github.event_name == 'workflow_dispatch' && inputs.dry_run != true))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -281,7 +248,7 @@ jobs:
             gh release upload "$TAG" dist/* --clobber --repo "$REPO"
           else
             gh release create "$TAG" --repo "$REPO" \
-              --title "$TAG" \
+              --title "近邻 · 局域网工具箱 $TAG" \
               --generate-notes \
               dist/*
           fi
@@ -292,12 +259,3 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
           REPO: ${{ github.repository }}
         run: gh release view "$TAG" --repo "$REPO"
-
-  # dry_run 时的兜底：构建完就直接结束，产物留在 Actions 页面上可下载
-  summary:
-    name: 构建结果（未发布）
-    needs: [windows-exe, unix-packages]
-    if: always() && inputs.dry_run
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "dry_run 模式：构建完成，未创建 Release，产物见上方 Artifacts。"
