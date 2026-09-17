@@ -14,6 +14,8 @@ Windows 单文件绿色版，约 1.5 MB，双击即用。启动后在本机 `878
 界面用 WebView2 承载，整个程序编译为**单个 exe**，不需要安装 Node.js，不会弹出控制台黑框，
 也不会自动打开外部浏览器。**所有数据只在局域网内流动，不经过任何服务器。**
 
+![近邻 · 局域网工具箱 — 文件快传界面](docs/screenshots/desktop-files.png)
+
 ## 为什么用它
 
 | | 近邻 | LocalSend | Snapdrop 类网页 | 微信文件传输助手 |
@@ -27,6 +29,14 @@ Windows 单文件绿色版，约 1.5 MB，双击即用。启动后在本机 `878
 | 部署成本 | 双击一个 exe | 每台设备装一次 | 开网页 | 装微信 |
 
 适合：**家里或办公室只有 Windows 电脑和手机，想快速在两者之间搬文件，又不想为这个装东西。**
+
+<p align="center">
+  <img src="docs/screenshots/mobile-clipboard.png" width="240" alt="手机端 · 共享剪贴板" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/mobile-files.png" width="240" alt="手机端 · 文件快传" />
+</p>
+
+<p align="center"><sub>手机端：浏览器打开局域网地址（或扫码）即可使用，无需安装任何 App</sub></p>
 
 ## 下载
 
