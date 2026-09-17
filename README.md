@@ -182,13 +182,17 @@ NearbyLanToolbox/
 │   ├── index.html
 │   ├── app.js
 │   └── styles.css
-├── server.js                     等价的 Node.js 版后端（备用运行方式，非必需）
+├── server.js                     Node.js 版后端（备用运行方式，功能少于 exe 版）
 ├── package.json
 ├── tools/
 │   ├── fetch-deps.ps1            还原依赖到 deps\
 │   └── embed-assets.ps1          重新生成 EmbeddedAssets.g.cs
 └── deps/                         构建时生成，不入库
 ```
+
+> **关于 `server.js`**：早期留下的 Node.js 版后端，可脱离 .NET 运行，但**功能少于 exe 版** ——
+> 未实现聊天室与访问密码，设备列表在非 Windows 系统上取不到（ARP 输出格式不同）。
+> 保留仅供参考，目前不推荐使用。
 
 ## 单文件是怎么做出来的
 
