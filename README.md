@@ -336,10 +336,14 @@ NearbyLanToolbox/
 ├── tools/
 │   ├── fetch-deps.ps1            还原 Windows 构建依赖到 deps\
 │   ├── embed-assets.ps1          重新生成 EmbeddedAssets.g.cs（build.ps1 已自动调用）
+│   ├── verify-embedded-assets.js 校验内嵌资源与 public\ 是否一致（CI 上独立把关）
 │   ├── pack-release.py           打包 macOS / Linux 发布包到 outputs/
 │   ├── test-arp-parser.js        邻居表解析测试（含 macOS / Linux 真实样本）
 │   └── test-access.js            访问密码与授权判定测试
-├── .github/workflows/release.yml 打 tag 自动构建三个平台的发布包并建 Release
+├── .github/workflows/release.yml 推送 main 即构建；推送 tag 额外发版到 Releases
+├── start-mac.command             macOS 一键启动（自动补 PATH、找 Node、选端口）
+├── start-linux.sh                Linux 一键启动
+├── 使用说明-必读.txt              给普通用户的解压/放行/连接说明
 ├── docs/screenshots/             界面截图
 ├── package.json
 └── deps/                         Windows 构建时生成，不入库
@@ -359,8 +363,14 @@ python tools/pack-release.py mac      # 只打 macOS 包
 并创建 Release，三个平台一次发齐：
 
 ```bash
-git tag v1.6 && git push origin v1.6
+git tag v1.7 && git push origin v1.7
 ```
+
+> **不要删除后重建同一个 tag**：已发布的 Release 会跟着 tag 一起消失（本项目踩过这个坑）。
+> 要重新发版就推一个新 tag；推 `main` 只构建、不发版，适合反复验证构建链路。
+>
+> 构建日志（含依赖布局、内嵌资源校验、MSBuild 输出）会推到 `ci-logs` 分支的
+> `build.log`，用 raw 地址即可查看，不需要登录 GitHub。
 
 > **关于两个后端**：`native/` 是 Windows 单文件 exe 版（C# / WinForms），`server.js` 是跨平台
 > Node.js 版。两者提供**同一套 HTTP 接口**、共用 `public/` 下的同一份前端，行为保持一致，
