@@ -1,0 +1,180 @@
+########## 环境 ##########
+ref      : refs/tags/v1.0  (tag)
+sha      : 9f3d27b99d643e4e78508c163e0cd071f00fa16d
+runner   : Windows
+--- 仓库根目录 ---
+total 97
+drwxr-xr-x 1 runneradmin 197121     0 Sep 17 06:25 .
+drwxr-xr-x 1 runneradmin 197121     0 Sep 17 06:25 ..
+drwxr-xr-x 1 runneradmin 197121     0 Sep 17 06:25 .git
+-rw-r--r-- 1 runneradmin 197121  1181 Sep 17 06:25 .gitattributes
+drwxr-xr-x 1 runneradmin 197121     0 Sep 17 06:25 .github
+-rw-r--r-- 1 runneradmin 197121   515 Sep 17 06:25 .gitignore
+-rw-r--r-- 1 runneradmin 197121  1082 Sep 17 06:25 LICENSE
+-rw-r--r-- 1 runneradmin 197121 21803 Sep 17 06:25 README.md
+-rw-r--r-- 1 runneradmin 197121   157 Sep 17 06:25 build.log
+-rw-r--r-- 1 runneradmin 197121  6491 Sep 17 06:25 build.ps1
+drwxr-xr-x 1 runneradmin 197121     0 Sep 17 06:25 docs
+drwxr-xr-x 1 runneradmin 197121     0 Sep 17 06:25 lib
+drwxr-xr-x 1 runneradmin 197121     0 Sep 17 06:25 native
+-rw-r--r-- 1 runneradmin 197121   476 Sep 17 06:25 package.json
+drwxr-xr-x 1 runneradmin 197121     0 Sep 17 06:25 public
+-rw-r--r-- 1 runneradmin 197121 22741 Sep 17 06:25 server.js
+-rwxr-xr-x 1 runneradmin 197121  2077 Sep 17 06:25 start-linux.sh
+-rwxr-xr-x 1 runneradmin 197121  5759 Sep 17 06:25 start-mac.command
+-rw-r--r-- 1 runneradmin 197121   642 Sep 17 06:25 start.bat
+-rw-r--r-- 1 runneradmin 197121   550 Sep 17 06:25 stop.bat
+drwxr-xr-x 1 runneradmin 197121     0 Sep 17 06:25 tools
+-rw-r--r-- 1 runneradmin 197121  3855 Sep 17 06:25 使用说明-必读.txt
+--- powershell 版本 ---
+5.1.26100.33296
+1252
+--- node 版本 ---
+v22.23.2
+
+########## 1/3 还原依赖 ##########
+==> Microsoft.Web.WebView2 1.0.2535.41
+  [get]   https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/1.0.2535.41
+  [ok]    Microsoft.Web.WebView2.Core.dll                  570,944 字节
+  [ok]    Microsoft.Web.WebView2.WinForms.dll               38,480 字节
+  [ok]    WebView2Loader.x64.dll                           165,440 字节
+  [ok]    WebView2Loader.x86.dll                           116,304 字节
+==> ZXing.Net 0.16.10
+  [get]   https://www.nuget.org/api/v2/package/ZXing.Net/0.16.10
+  [ok]    zxing.dll                                        528,896 字节
+==> .NET Framework 4.8 参考程序集
+  [info]  本机已装 Developer Pack，仍使用包内参考程序集以保证跨机器一致
+  [get]   https://www.nuget.org/api/v2/package/Microsoft.NETFramework.ReferenceAssemblies.net48/1.0.3
+  [ok]    reference-assemblies\.NETFramework\v4.8  (133 个参考程序集)
+
+==> 校验
+  [ok]   Microsoft.Web.WebView2.Core.dll
+  [ok]   Microsoft.Web.WebView2.WinForms.dll
+  [ok]   WebView2Loader.x64.dll
+  [ok]   WebView2Loader.x86.dll
+  [ok]   zxing.dll
+
+依赖已就绪：D:\a\NearbyLanToolbox\NearbyLanToolbox\deps
+接下来执行 build.ps1 编译。
+[1/3 exit=0]
+
+########## 依赖布局 ##########
+--- deps 顶层 ---
+total 1408
+drwxr-xr-x 1 runneradmin 197121      0 Sep 17 06:25 .
+drwxr-xr-x 1 runneradmin 197121      0 Sep 17 06:25 ..
+drwxr-xr-x 1 runneradmin 197121      0 Sep 17 06:25 .cache
+-rwxr-xr-x 1 runneradmin 197121 570944 May 12  2024 Microsoft.Web.WebView2.Core.dll
+-rwxr-xr-x 1 runneradmin 197121  38480 May 12  2024 Microsoft.Web.WebView2.WinForms.dll
+-rwxr-xr-x 1 runneradmin 197121 165440 May 12  2024 WebView2Loader.x64.dll
+-rwxr-xr-x 1 runneradmin 197121 116304 May 12  2024 WebView2Loader.x86.dll
+drwxr-xr-x 1 runneradmin 197121      0 Sep 17 06:25 reference-assemblies
+-rwxr-xr-x 1 runneradmin 197121 528896 Jan 26  2025 zxing.dll
+--- deps/*.dll ---
+-rwxr-xr-x 1 runneradmin 197121 570944 May 12  2024 deps/Microsoft.Web.WebView2.Core.dll
+-rwxr-xr-x 1 runneradmin 197121  38480 May 12  2024 deps/Microsoft.Web.WebView2.WinForms.dll
+-rwxr-xr-x 1 runneradmin 197121 165440 May 12  2024 deps/WebView2Loader.x64.dll
+-rwxr-xr-x 1 runneradmin 197121 116304 May 12  2024 deps/WebView2Loader.x86.dll
+-rwxr-xr-x 1 runneradmin 197121 528896 Jan 26  2025 deps/zxing.dll
+--- reference-assemblies 里的 targets ---
+deps/reference-assemblies/Microsoft.NETFramework.ReferenceAssemblies.net48.targets
+--- reference-assemblies 里的 mscorlib.dll ---
+deps/reference-assemblies/.NETFramework/v4.8/mscorlib.dll
+--- reference-assemblies 前 3 层 ---
+deps/reference-assemblies
+deps/reference-assemblies/.NETFramework
+deps/reference-assemblies/.NETFramework/v4.8
+deps/reference-assemblies/.NETFramework/v4.8/Accessibility.dll
+deps/reference-assemblies/.NETFramework/v4.8/Accessibility.xml
+deps/reference-assemblies/.NETFramework/v4.8/CustomMarshalers.dll
+deps/reference-assemblies/.NETFramework/v4.8/CustomMarshalers.xml
+deps/reference-assemblies/.NETFramework/v4.8/Facades
+deps/reference-assemblies/.NETFramework/v4.8/ISymWrapper.dll
+deps/reference-assemblies/.NETFramework/v4.8/ISymWrapper.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Activities.Build.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Activities.Build.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Conversion.v4.0.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Conversion.v4.0.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Engine.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Engine.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Framework.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Framework.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Tasks.v4.0.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Tasks.v4.0.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Utilities.v4.0.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.Utilities.v4.0.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.Build.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.CSharp.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.CSharp.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.JScript.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.JScript.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualBasic.Compatibility.Data.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualBasic.Compatibility.Data.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualBasic.Compatibility.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualBasic.Compatibility.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualBasic.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualBasic.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualC.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualC.STLCLR.dll
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualC.STLCLR.xml
+deps/reference-assemblies/.NETFramework/v4.8/Microsoft.VisualC.xml
+deps/reference-assemblies/.NETFramework/v4.8/mscorlib.dll
+deps/reference-assemblies/.NETFramework/v4.8/mscorlib.xml
+
+########## 2/3 内嵌前端资源 ##########
+近邻 · 局域网工具箱 —— 重新内嵌前端资源
+源目录：D:\a\NearbyLanToolbox\NearbyLanToolbox\public
+
+  Index        index.html        8,307 字节 -> Base64    3,500 字符 (42.1%)
+  App          app.js           22,976 字节 -> Base64    8,908 字符 (38.8%)
+  Styles       styles.css       15,955 字节 -> Base64    5,156 字符 (32.3%)
+
+已生成：D:\a\NearbyLanToolbox\NearbyLanToolbox\native\EmbeddedAssets.g.cs
+大小：18,535 字节
+[2/3 exit=0]
+-rw-r--r-- 1 runneradmin 197121 18535 Sep 17 06:25 native/EmbeddedAssets.g.cs
+
+########## 校验内嵌资源与 public 一致 ##########
+
+内嵌前端资源一致性校验
+
+  ✓ index.html（8307 字节 sha256=a4366224ba9f）与内嵌内容一致
+  ✓ app.js（22976 字节 sha256=d89c53602a97）与内嵌内容一致
+  ✓ styles.css（15955 字节 sha256=f44b37d912e7）与内嵌内容一致
+
+结果: 3 项一致, 0 项不一致
+
+[verify exit=0]
+
+########## 3/3 编译 ##########
+近邻 · 局域网工具箱 —— 构建
+仓库根目录：D:\a\NearbyLanToolbox\NearbyLanToolbox
+
+==> 跳过依赖还原（-SkipDeps）
+
+==> 跳过前端资源内嵌（-SkipEmbed）
+使用仓库中已有的：D:\a\NearbyLanToolbox\NearbyLanToolbox\native\EmbeddedAssets.g.cs
+
+==> 编译（Release）
+MSBuild：C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Current\Bin\MSBuild.exe
+工程：  D:\a\NearbyLanToolbox\NearbyLanToolbox\native\NearbyLanToolbox.csproj
+
+
+  NearbyLanToolbox -> D:\a\NearbyLanToolbox\NearbyLanToolbox\outputs\NearbyLanToolbox.exe
+
+==> 构建完成
+D:\a\NearbyLanToolbox\NearbyLanToolbox\outputs\NearbyLanToolbox.exe
+大小：1,507,840 字节 (1.44 MB)
+时间：9/17/2026 6:25:53 AM
+[3/3 exit=0]
+
+########## 产物 ##########
+total 1480
+drwxr-xr-x 1 runneradmin 197121       0 Sep 17 06:25 .
+drwxr-xr-x 1 runneradmin 197121       0 Sep 17 06:25 ..
+-rwxr-xr-x 1 runneradmin 197121 1507840 Sep 17 06:25 NearbyLanToolbox.exe
+########## 产物校验 ##########
+NearbyLanToolbox.exe：1507840 字节
+SHA256：77e656e1e6c58e56ab7732ae2f0e3f3fff884fa97ab813fbaf440c7893ad19d9  NearbyLanToolbox.exe
+结论：构建成功
