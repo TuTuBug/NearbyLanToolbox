@@ -336,7 +336,7 @@ python tools/pack-release.py mac      # 只打 macOS 包
 并创建 Release，三个平台一次发齐：
 
 ```bash
-git tag v1.6.0 && git push origin v1.6.0
+git tag v1.6 && git push origin v1.6
 ```
 
 > **关于两个后端**：`native/` 是 Windows 单文件 exe 版（C# / WinForms），`server.js` 是跨平台
