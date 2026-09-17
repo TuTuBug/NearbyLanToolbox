@@ -1,10 +1,32 @@
 # 近邻 · 局域网工具箱
 
-一个轻量的 Windows 局域网工具。启动后在本机 `8787` 端口起一个 HTTP 服务，同一 Wi-Fi
-下的手机、平板、电脑用浏览器打开局域网地址，即可与这台机器互传文件、共享剪贴板、群聊和测速。
+[![License](https://img.shields.io/github/license/TuTuBug/NearbyLanToolbox)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/TuTuBug/NearbyLanToolbox)](https://github.com/TuTuBug/NearbyLanToolbox/releases)
+[![Downloads](https://img.shields.io/github/downloads/TuTuBug/NearbyLanToolbox/total)](https://github.com/TuTuBug/NearbyLanToolbox/releases)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)
+
+**同一 Wi-Fi 下，手机扫个码就能和电脑互传文件。接收端不用装任何 App。**
+
+Windows 单文件绿色版，约 1.5 MB，双击即用。启动后在本机 `8787` 端口起一个 HTTP 服务，
+同一 Wi-Fi 下的手机、平板、电脑用浏览器打开局域网地址（或直接扫二维码），即可**互传文件**、
+**共享剪贴板**、**群聊**、**测速**，并查看**局域网设备列表**。
 
 界面用 WebView2 承载，整个程序编译为**单个 exe**，不需要安装 Node.js，不会弹出控制台黑框，
-也不会自动打开外部浏览器。
+也不会自动打开外部浏览器。**所有数据只在局域网内流动，不经过任何服务器。**
+
+## 为什么用它
+
+| | 近邻 | LocalSend | Snapdrop 类网页 | 微信文件传输助手 |
+|---|---|---|---|---|
+| 接收端要装 App | ❌ 扫码用浏览器 | ✅ 要装 | ❌ 开网页 | ✅ 要装 |
+| 需要外网 | ❌ 纯局域网 | ⚠️ 同 Wi-Fi 即可 | ✅ 需要 | ✅ 需要 |
+| 文件经过服务器 | ❌ | ❌ | ✅ 有中转 | ✅ 腾讯服务器 |
+| 剪贴板同步 | ✅ | ❌ | ❌ | ⚠️ 手动转发 |
+| 聊天 / 测速 / 设备发现 | ✅ | ❌ | ❌ | ❌ |
+| 跨平台 | ⚠️ 仅 Windows 做主机 | ✅ 全平台 | ✅ | ✅ |
+| 部署成本 | 双击一个 exe | 每台设备装一次 | 开网页 | 装微信 |
+
+适合：**家里或办公室只有 Windows 电脑和手机，想快速在两者之间搬文件，又不想为这个装东西。**
 
 ## 下载
 
