@@ -108,6 +108,17 @@ foreach ($f in $required) {
     }
 }
 
+# ---------- 步骤 1.5：重新内嵌前端资源 ----------
+# 改了 public\index.html、app.js、styles.css 之后，必须重新生成 EmbeddedAssets.g.cs，
+# 否则编译出来的 exe 里跑的仍是旧页面。这一步幂等且很快，所以每次构建都执行。
+Write-Step "同步前端资源（public\ -> native\EmbeddedAssets.g.cs）"
+$embed = Join-Path $RepoRoot "tools\embed-assets.ps1"
+try {
+    & $embed -RepoRoot $RepoRoot
+} catch {
+    throw "前端资源内嵌失败：$($_.Exception.Message)"
+}
+
 # ---------- 步骤 2：编译 ----------
 Write-Step "编译（$Configuration）"
 $msbuild = Resolve-MSBuild -Explicit $MSBuildPath

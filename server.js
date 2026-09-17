@@ -12,12 +12,24 @@ const PORT = Number(process.env.PORT || 8787);
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const UPLOAD_DIR = path.join(ROOT, "data", "uploads");
-const MAX_UPLOAD = 2 * 1024 * 1024 * 1024;
+// 上传不限制单文件大小：能传多大由接收盘剩余空间决定。
+// 预检时保留这个余量，避免刚好把盘写满导致系统不稳定。
+const FREE_SPACE_RESERVE = 1024 * 1024 * 1024;
 const MAX_BODY = 1024 * 1024;
 const MAX_SPEED_BYTES = 100 * 1024 * 1024;
 const POLL_CLIENT_TTL = 15000;
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+// 目标磁盘可用空间。statfsSync 需要 Node 18.15+，读不到就按"不拦截"处理。
+function availableFreeSpace(dir) {
+  try {
+    const stat = fs.statfsSync(dir);
+    return stat.bavail * stat.bsize;
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
+}
 
 let clipboard = { text: "", updatedAt: null, deviceName: "" };
 const eventClients = new Map();
@@ -321,7 +333,9 @@ async function handleApi(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/upload") {
     const declaredSize = Number(req.headers["content-length"] || 0);
-    if (declaredSize > MAX_UPLOAD) return error(res, 413, "文件超过 2 GB");
+    // 不做单文件大小限制，只校验接收盘是否有足够剩余空间。
+    const sizeLimit = Math.max(0, availableFreeSpace(UPLOAD_DIR) - FREE_SPACE_RESERVE);
+    if (declaredSize > sizeLimit) return error(res, 413, "接收目录所在磁盘剩余空间不足");
     const originalName = safeFileName(safeDecode(req.headers["x-file-name"] || "file"));
     const id = `${Date.now()}-${crypto.randomBytes(4).toString("hex")}--${originalName}`;
     const finalPath = path.join(UPLOAD_DIR, id);
@@ -339,7 +353,7 @@ async function handleApi(req, res, url) {
 
     req.on("data", (chunk) => {
       received += chunk.length;
-      if (received > MAX_UPLOAD) fail(413, "文件超过 2 GB");
+      if (received > sizeLimit) fail(413, "接收目录所在磁盘剩余空间不足");
     });
     req.on("aborted", () => fail(400, "上传已中断"));
     req.on("error", () => fail(500, "上传失败"));

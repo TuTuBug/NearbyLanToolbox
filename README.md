@@ -59,7 +59,7 @@ Windows 单文件绿色版，约 1.5 MB，双击即用。启动后在本机 `878
 ## 功能
 
 - 共享剪贴板（SSE 实时同步，并带心跳轮询回退）
-- 文件快传（拖拽上传、下载、删除，单文件上限 2 GB）
+- 文件快传（拖拽上传、下载、删除，不限单文件大小，仅受接收盘剩余空间约束）
 - 设备列表（工具箱在线客户端 + 系统 ARP 缓存）
 - 局域网聊天室（SSE 实时消息，保留本次运行最近 200 条）
 - 局域网测速（延迟、上传、下载）
@@ -143,14 +143,16 @@ powershell -ExecutionPolicy Bypass -File build.ps1 -Proxy "http://127.0.0.1:7897
 outputs\NearbyLanToolbox.exe
 ```
 
-### 改了前端页面记得重新内嵌
+### 前端资源是内嵌进 exe 的
 
 页面不走磁盘文件，而是把 `public\` 下的资源 GZip 压缩 + Base64 后
-写进 `native\EmbeddedAssets.g.cs`，编译时进 exe。所以**改了 `public\` 之后必须重新生成**：
+写进 `native\EmbeddedAssets.g.cs`，编译时进 exe。
+
+`build.ps1` 每次构建都会自动重新生成它，正常不用管。
+只有绕开 `build.ps1` 直接用 MSBuild 编译时，才需要先手动执行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\embed-assets.ps1
-powershell -ExecutionPolicy Bypass -File build.ps1 -SkipDeps
 ```
 
 ### 单独还原依赖
@@ -169,7 +171,7 @@ powershell -ExecutionPolicy Bypass -File tools\fetch-deps.ps1
 
 ```text
 NearbyLanToolbox/
-├── build.ps1                     一键构建（还原依赖 + 编译）
+├── build.ps1                     一键构建（还原依赖 + 内嵌前端 + 编译）
 ├── start.bat / stop.bat          启动 / 停止（按端口 8787 结束进程）
 ├── native/
 │   ├── NearbyLanToolbox.csproj   构建工程（.NET Framework 4.8 / WinForms）
@@ -178,7 +180,7 @@ NearbyLanToolbox/
 │   ├── WebViewRuntime.cs         内嵌依赖加载（AssemblyResolve）与原生加载器释放
 │   ├── EmbeddedAssets.g.cs       自动生成：内嵌的页面/脚本/样式（勿手工编辑）
 │   └── app.ico                   程序图标
-├── public/                       前端源码（改这里，然后跑 embed-assets.ps1）
+├── public/                       前端源码（改这里，build.ps1 会自动重新内嵌）
 │   ├── index.html
 │   ├── app.js
 │   └── styles.css
@@ -186,7 +188,7 @@ NearbyLanToolbox/
 ├── package.json
 ├── tools/
 │   ├── fetch-deps.ps1            还原依赖到 deps\
-│   └── embed-assets.ps1          重新生成 EmbeddedAssets.g.cs
+│   └── embed-assets.ps1          重新生成 EmbeddedAssets.g.cs（build.ps1 已自动调用）
 └── deps/                         构建时生成，不入库
 ```
 

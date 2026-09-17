@@ -68,7 +68,9 @@ namespace NearbyLanToolbox
     internal static class Program
     {
         internal const int Port = 8787;
-        private const long MaxUpload = 2L * 1024 * 1024 * 1024;
+        // 上传不限制单文件大小：能传多大由接收盘剩余空间决定，而不是写死的常量。
+        // 预检时保留这个余量，避免刚好把盘写满导致系统不稳定。
+        private const long FreeSpaceReserve = 1024L * 1024 * 1024;
         private const int MaxJsonBody = 1024 * 1024;
         private const int MaxSpeedBytes = 100 * 1024 * 1024;
         private const long PollClientTtl = 15000;
@@ -715,12 +717,39 @@ namespace NearbyLanToolbox
             return new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
         }
 
+        // 目标磁盘可用空间；读不到时返回 Int64.MaxValue，即不拦截。
+        private static long AvailableFreeSpace(string directory)
+        {
+            try
+            {
+                string root = Path.GetPathRoot(Path.GetFullPath(directory));
+                if (String.IsNullOrEmpty(root)) return Int64.MaxValue;
+                return new DriveInfo(root).AvailableFreeSpace;
+            }
+            catch
+            {
+                return Int64.MaxValue;
+            }
+        }
+
         private static void HandleUpload(NetworkStream stream, HttpRequestData request)
         {
-            if (request.contentLength > MaxUpload) { WriteError(stream, 413, "文件超过 2 GB"); return; }
             string originalName = SafeFileName(Uri.UnescapeDataString(Header(request, "X-File-Name")));
             string id = EpochMilliseconds() + "-" + RandomHex(4) + "--" + originalName;
             string uploadDirectory = UploadDirectoryPath;
+
+            // 不做单文件大小限制，只校验接收盘是否有足够剩余空间。
+            // 先预检一次，避免写到一半才发现空间不够、白等一场。
+            if (request.contentLength > 0)
+            {
+                long available = AvailableFreeSpace(uploadDirectory);
+                if (request.contentLength > available - FreeSpaceReserve)
+                {
+                    WriteError(stream, 413, "接收目录所在磁盘剩余空间不足");
+                    return;
+                }
+            }
+
             string finalPath = Path.Combine(uploadDirectory, id);
             string tempPath = finalPath + ".part";
             try
