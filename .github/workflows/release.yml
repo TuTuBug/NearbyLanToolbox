@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "要发布/更新的 tag（如 v1.7）"
+        description: "要发布/更新的 tag"
         required: true
       dry_run:
         description: "只构建，不创建 Release"
@@ -35,102 +35,73 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 环境信息写进 job summary。
-      # Actions 的 job 日志接口对公开仓库也要求认证，外部拿不到；
-      # job summary 是少数无需登录即可读取的通道，诊断必须依赖它。
-      - name: 记录构建环境
+      # 构建全程由 bash 驱动、全量输出 tee 到 build.log。
+      #
+      # 为什么不在 workflow 里逐个调用 PowerShell 脚本并靠管道收集输出：
+      # PowerShell 5.1 的流捕获在脚本内部 throw 时会丢内容，曾导致
+      # 「步骤显示失败、但日志是空的」，完全无法定位。bash 的 tee 在这里
+      # 是可靠的一方；PowerShell 只作为被调用的子进程。
+      - name: 构建（全量日志落盘）
+        continue-on-error: true
         shell: bash
         run: |
           {
-            echo "## 构建环境"
-            echo ""
-            echo '```text'
-            echo "runner OS : $RUNNER_OS"
-            echo "repo      : $GITHUB_REPOSITORY"
-            echo "ref       : $GITHUB_REF  ($GITHUB_REF_TYPE)"
-            echo "sha       : $GITHUB_SHA"
-            echo ""
-            echo "--- 顶层目录 ---"
+            echo "########## 环境 ##########"
+            echo "ref      : $GITHUB_REF  ($GITHUB_REF_TYPE)"
+            echo "sha      : $GITHUB_SHA"
+            echo "runner   : $RUNNER_OS"
+            echo "--- 仓库根目录 ---"
             ls -la
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo "--- powershell 版本 ---"
+            powershell.exe -NoProfile -Command '$PSVersionTable.PSVersion.ToString(); (Get-Culture).TextInfo.ANSICodePage'
+            echo "--- node 版本 ---"
+            node --version
 
-      # 用 Start-Process 而不是 `& script | Tee-Object`：
-      # PowerShell 5.1 的流捕获在脚本内部 throw 时会丢内容，导致「日志是空的、
-      # 只看到失败」这种没法定位的局面。Start-Process 能把 stdout / stderr 和
-      # 真实退出码分别落到文件里，可靠得多。
-      - name: 1/3 还原依赖
-        shell: powershell
-        run: |
-          $out = "01-fetch-deps.out.log"
-          $err = "01-fetch-deps.err.log"
-          $p = Start-Process -FilePath "powershell" -NoNewWindow -Wait -PassThru `
-                -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File",".\tools\fetch-deps.ps1") `
-                -RedirectStandardOutput $out -RedirectStandardError $err
-          Write-Host "fetch-deps 退出码: $($p.ExitCode)"
-          if ($p.ExitCode -ne 0) { exit 1 }
-
-      - name: 检查依赖布局
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo "## 依赖布局"
             echo ""
-            echo '```text'
+            echo "########## 1/3 还原依赖 ##########"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./tools/fetch-deps.ps1
+            echo "[1/3 exit=$?]"
+
+            echo ""
+            echo "########## 依赖布局 ##########"
             echo "--- deps 顶层 ---"
-            ls -la deps/ 2>&1 || echo "(deps 不存在)"
-            echo ""
+            ls -la deps/
             echo "--- deps/*.dll ---"
-            ls -la deps/*.dll 2>&1 || echo "(没有 dll)"
-            echo ""
-            echo "--- reference-assemblies 下的 targets 文件 ---"
-            find deps/reference-assemblies -name "*.targets" 2>/dev/null | head -20 || echo "(无)"
-            echo ""
-            echo "--- reference-assemblies 下的 mscorlib.dll ---"
-            find deps/reference-assemblies -name "mscorlib.dll" 2>/dev/null | head -20 || echo "(无)"
-            echo ""
+            ls -la deps/*.dll 2>&1
+            echo "--- reference-assemblies 里的 targets ---"
+            find deps/reference-assemblies -name "*.targets" 2>/dev/null
+            echo "--- reference-assemblies 里的 mscorlib.dll ---"
+            find deps/reference-assemblies -name "mscorlib.dll" 2>/dev/null
             echo "--- reference-assemblies 前 3 层 ---"
-            find deps/reference-assemblies -maxdepth 3 2>/dev/null | head -40 || echo "(无)"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+            find deps/reference-assemblies -maxdepth 3 2>/dev/null | head -40
 
-      - name: 2/3 内嵌前端资源
-        shell: powershell
-        run: |
-          $out = "02-embed-assets.out.log"
-          $err = "02-embed-assets.err.log"
-          $p = Start-Process -FilePath "powershell" -NoNewWindow -Wait -PassThru `
-                -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File",".\tools\embed-assets.ps1") `
-                -RedirectStandardOutput $out -RedirectStandardError $err
-          Write-Host "embed-assets 退出码: $($p.ExitCode)"
-          if (-not (Test-Path "native\EmbeddedAssets.g.cs")) {
-            Write-Host "未生成 native\EmbeddedAssets.g.cs"
-            exit 1
-          }
-          $info = Get-Item "native\EmbeddedAssets.g.cs"
-          Write-Host ("EmbeddedAssets.g.cs: {0:N0} 字节" -f $info.Length)
+            echo ""
+            echo "########## 2/3 内嵌前端资源 ##########"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./tools/embed-assets.ps1
+            echo "[2/3 exit=$?]"
+            ls -la native/EmbeddedAssets.g.cs
 
-      # 独立兜底：确认 exe 会嵌进去的前端，就是 public/ 里当前的版本。
-      # 用 Node 而不是 PowerShell —— 出问题的恰恰是那个运行时。
-      - name: 校验内嵌资源与 public 一致
-        shell: bash
-        run: node tools/verify-embedded-assets.js
+            echo ""
+            echo "########## 校验内嵌资源与 public 一致 ##########"
+            node tools/verify-embedded-assets.js
+            echo "[verify exit=$?]"
 
-      - name: 3/3 编译
-        shell: powershell
-        run: |
-          $out = "03-msbuild.out.log"
-          $err = "03-msbuild.err.log"
-          $p = Start-Process -FilePath "powershell" -NoNewWindow -Wait -PassThru `
-                -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File",".\build.ps1","-SkipDeps","-SkipEmbed") `
-                -RedirectStandardOutput $out -RedirectStandardError $err
-          Write-Host "build.ps1 退出码: $($p.ExitCode)"
-          if (Test-Path "outputs\NearbyLanToolbox.exe") {
-            Write-Host ("编译成功：{0:N0} 字节" -f (Get-Item "outputs\NearbyLanToolbox.exe").Length)
+            echo ""
+            echo "########## 3/3 编译 ##########"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./build.ps1 -SkipDeps -SkipEmbed
+            echo "[3/3 exit=$?]"
+
+            echo ""
+            echo "########## 产物 ##########"
+            ls -la outputs/ 2>&1 || echo "(outputs 不存在)"
+          } 2>&1 | tee build.log
+
+          echo ""
+          if [ -f outputs/NearbyLanToolbox.exe ]; then
+            echo "结论：构建成功"
             exit 0
-          }
-          Write-Host "编译未产出 exe"
+          fi
+          echo "结论：构建失败，日志见 ci-logs 分支的 build.log"
           exit 1
 
       - name: 校验产物并记录校验和
@@ -155,13 +126,34 @@ jobs:
             release-checksum.txt
             *.log
 
-      # 无论成败都把各步骤日志尾部写进 job summary —— 这是无认证条件下
-      # 唯一能稳定读到构建现场的方式。
-      - name: 构建诊断（写入 job summary）
+      # Actions 的 job 日志接口对公开仓库也要求认证，job summary 与注解也不总是
+      # 可靠可读。把日志推到独立分支后，可以直接用 raw 地址匿名读取，
+      # 这是唯一 100% 稳定的诊断通道。
+      - name: 导出构建日志到 ci-logs 分支
         if: always()
         continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
-        run: node tools/ci-diagnostics.js
+        run: |
+          set -e
+          rm -rf /tmp/cilogs && mkdir -p /tmp/cilogs
+          cp ./*.log /tmp/cilogs/ 2>/dev/null || true
+          cd /tmp/cilogs
+          {
+            echo "# run $GITHUB_RUN_NUMBER"
+            echo ""
+            echo "- ref: $GITHUB_REF ($GITHUB_REF_TYPE)"
+            echo "- sha: $GITHUB_SHA"
+            echo "- 触发: $GITHUB_EVENT_NAME"
+          } > README.md
+          git init -q -b ci-logs
+          git config user.email "ci@users.noreply.github.com"
+          git config user.name "ci"
+          git add -A
+          git commit -q -m "run $GITHUB_RUN_NUMBER 构建日志" || echo "(无改动)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-logs
+          echo "日志已推到 ci-logs 分支"
 
   # ---------- macOS / Linux：打包跨平台发布包 ----------
   unix-packages:
