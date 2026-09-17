@@ -6,6 +6,12 @@
 *.bat   text eol=crlf
 *.cmd   text eol=crlf
 
+# macOS / Linux 的 shell 脚本必须 LF：一旦被 checkout 成 CRLF，
+# macOS 上双击会报 "/bin/bash^M: bad interpreter"。
+# 注意 *.cmd 这条规则不覆盖 .command（后缀不同），必须单独声明。
+*.command text eol=lf
+*.sh      text eol=lf
+
 # PowerShell / C# / 工程文件统一 CRLF（与本项目开发环境一致）
 *.ps1   text eol=crlf
 *.psm1  text eol=crlf

@@ -3,16 +3,24 @@
 [![License](https://img.shields.io/github/license/TuTuBug/NearbyLanToolbox)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/TuTuBug/NearbyLanToolbox)](https://github.com/TuTuBug/NearbyLanToolbox/releases)
 [![Downloads](https://img.shields.io/github/downloads/TuTuBug/NearbyLanToolbox/total)](https://github.com/TuTuBug/NearbyLanToolbox/releases)
-![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-2C8EBB)
 
 **同一 Wi-Fi 下，手机扫个码就能和电脑互传文件。接收端不用装任何 App。**
 
-Windows 单文件绿色版，约 1.5 MB，双击即用。启动后在本机 `8787` 端口起一个 HTTP 服务，
-同一 Wi-Fi 下的手机、平板、电脑用浏览器打开局域网地址（或直接扫二维码），即可**互传文件**、
-**共享剪贴板**、**群聊**、**测速**，并查看**局域网设备列表**。
+服务端在本机 `8787` 端口起一个 HTTP 服务，同一 Wi-Fi 下的手机、平板、电脑用浏览器打开
+局域网地址（或直接扫二维码），即可**互传文件**、**共享剪贴板**、**群聊**、**测速**，
+并查看**局域网设备列表**。
 
-界面用 WebView2 承载，整个程序编译为**单个 exe**，不需要安装 Node.js，不会弹出控制台黑框，
-也不会自动打开外部浏览器。**所有数据只在局域网内流动，不经过任何服务器。**
+主机端有两种运行方式，**功能完全一致**：
+
+| 运行方式 | 平台 | 特点 |
+|---|---|---|
+| **单文件 exe**（推荐） | Windows 10 / 11 | 约 1.5 MB，双击即用，无需 Node.js，界面用 WebView2 承载，不弹控制台黑框 |
+| **Node.js 版** | macOS / Linux / Windows | 需要 Node.js 18+，一行命令启动，macOS 可双击 `start-mac.command` |
+
+两侧共用同一套 HTTP 接口与同一份前端页面。**任何设备都能当"客户端"** —— 手机、平板、
+另一台电脑，用浏览器打开地址即可，不需要安装任何东西。
+**所有数据只在局域网内流动，不经过任何服务器。**
 
 ![近邻 · 局域网工具箱 — 文件快传界面](docs/screenshots/desktop-files.png)
 
@@ -25,10 +33,10 @@ Windows 单文件绿色版，约 1.5 MB，双击即用。启动后在本机 `878
 | 文件经过服务器 | ❌ | ❌ | ✅ 有中转 | ✅ 腾讯服务器 |
 | 剪贴板同步 | ✅ | ❌ | ❌ | ⚠️ 手动转发 |
 | 聊天 / 测速 / 设备发现 | ✅ | ❌ | ❌ | ❌ |
-| 跨平台 | ⚠️ 仅 Windows 做主机 | ✅ 全平台 | ✅ | ✅ |
-| 部署成本 | 双击一个 exe | 每台设备装一次 | 开网页 | 装微信 |
+| 跨平台 | ✅ 三种系统都能做主机 | ✅ 全平台 | ✅ | ✅ |
+| 部署成本 | 双击一个 exe / 一行 node 命令 | 每台设备装一次 | 开网页 | 装微信 |
 
-适合：**家里或办公室只有 Windows 电脑和手机，想快速在两者之间搬文件，又不想为这个装东西。**
+适合：**家里或办公室有电脑和手机，想快速在两者之间搬文件，又不想为这个装东西。**
 
 <p align="center">
   <img src="docs/screenshots/mobile-clipboard.png" width="240" alt="手机端 · 共享剪贴板" />
@@ -64,9 +72,12 @@ Windows 单文件绿色版，约 1.5 MB，双击即用。启动后在本机 `878
 - 局域网聊天室（SSE 实时消息，保留本次运行最近 200 条）
 - 局域网测速（延迟、上传、下载）
 - 连接二维码与可选访问密码
-- Windows 系统托盘模式
+- 跨平台：macOS / Linux 用 Node.js 版，接口与功能一致
+- Windows 系统托盘模式（仅 exe 版）
 
 ## 使用
+
+### Windows exe 版
 
 直接双击 `NearbyLanToolbox.exe`。窗口上方可以：
 
@@ -92,6 +103,11 @@ Windows 单文件绿色版，约 1.5 MB，双击即用。启动后在本机 `878
 - 二维码只包含局域网地址，不会把访问密码写进二维码。
 - 本机软件窗口通过回环地址访问，不需要输入密码。
 
+> **Node 版同理，只是没有二维码按钮**：把启动时打印的局域网地址
+> （形如 `http://192.168.1.5:8787`）发给对方即可；访问密码用
+> `node server.js --set-password 1234` 设置，命令行选项见
+> [在 macOS / Linux 上运行](#在-macos--linux-上运行)。
+
 访问设置保存在：
 
 ```text
@@ -106,6 +122,73 @@ Windows 单文件绿色版，约 1.5 MB，双击即用。启动后在本机 `878
 ```text
 %LOCALAPPDATA%\NearbyLanToolbox\upload-path.txt
 ```
+
+## 在 macOS / Linux 上运行
+
+macOS 与 Linux 使用 Node.js 版后端，**接口与 exe 版完全一致**（文件互传、剪贴板、聊天室、
+设备发现、测速、访问密码都有），前端也是同一份页面。
+
+### 快速开始
+
+```bash
+git clone https://github.com/TuTuBug/NearbyLanToolbox.git
+cd NearbyLanToolbox
+node server.js
+```
+
+需要 **Node.js 18 或更高**：
+
+- macOS：`brew install node`，或到 [nodejs.org](https://nodejs.org) 下载安装包
+- Linux：`sudo apt install nodejs` / `sudo dnf install nodejs`，或同样用 nvm 安装
+
+**零第三方依赖，不需要 `npm install`。**
+
+macOS 上也可以直接在「访达」里**双击 `start-mac.command`**，它会检查 Node 环境、
+给出安装指引（未装时）并启动服务。首次双击若提示「来自身份不明的开发者」，
+在文件上右键 → 打开 → 再点「打开」即可，只需一次。
+
+### 命令行选项
+
+| 选项 | 说明 |
+|---|---|
+| `--port <端口>` | 服务端口，默认 `8787` |
+| `--upload-dir <路径>` | 接收目录，默认项目内 `data/uploads` |
+| `--set-password <密码>` | 设置访问密码（4 到 8 位数字），完成后退出 |
+| `--disable-password` | 关闭访问密码，完成后退出 |
+| `--show-config` | 打印当前配置（平台、设置目录、接收目录、端口、密码状态） |
+| `--help` | 查看帮助 |
+
+```bash
+node server.js --set-password 1234    # 启用访问密码
+node server.js                        # 启动服务（密码已生效）
+node server.js --show-config          # 查看当前配置
+node server.js --disable-password     # 关闭访问密码
+node server.js --port 8888            # 换个端口
+```
+
+也可以直接用环境变量 `PORT`、`UPLOAD_DIR` 覆盖端口与接收目录。
+
+### 配置文件位置
+
+设置目录按各系统的标准位置，与 exe 版**同名同格式**，两个平台的配置互不干扰：
+
+| 平台 | 设置目录 |
+|---|---|
+| macOS | `~/Library/Application Support/NearbyLanToolbox` |
+| Linux | `$XDG_CONFIG_HOME/NearbyLanToolbox`（未设则 `~/.config/NearbyLanToolbox`） |
+| Windows | `%LOCALAPPDATA%\NearbyLanToolbox` |
+
+目录下两个文件：
+
+- `access-settings.txt` —— 访问密码。第一行 `1` 表示启用、`0` 表示关闭，第二行是密码。
+- `upload-path.txt` —— 接收目录（可选，不写则用项目内 `data/uploads`）。
+
+### 首次运行的两个提示
+
+- **macOS 会弹窗询问「是否允许 `node` 接受传入的网络连接」，请选"允许"**，
+  否则手机等设备连不上。误点拒绝的话，到
+  「系统设置 → 网络 → 防火墙 → 选项」把 `node` 改为允许传入连接。
+- 服务窗口需要保持开启，**Control + C** 停止。
 
 ## 从源码构建
 
@@ -171,30 +254,43 @@ powershell -ExecutionPolicy Bypass -File tools\fetch-deps.ps1
 
 ```text
 NearbyLanToolbox/
-├── build.ps1                     一键构建（还原依赖 + 内嵌前端 + 编译）
-├── start.bat / stop.bat          启动 / 停止（按端口 8787 结束进程）
-├── native/
-│   ├── NearbyLanToolbox.csproj   构建工程（.NET Framework 4.8 / WinForms）
+├── build.ps1                     一键构建 Windows exe（还原依赖 + 内嵌前端 + 编译）
+├── start.bat / stop.bat          Windows 启动 / 停止（停止按端口 8787 结束进程）
+├── start-mac.command             macOS 双击启动（检查 Node 环境后运行 server.js）
+├── server.js                     Node.js 版后端入口（跨平台：macOS / Linux / Windows）
+├── lib/
+│   ├── access.js                 访问密码与授权判定（与 exe 版共用设置文件格式）
+│   └── arp.js                    邻居表解析（Windows / macOS / Linux 三种输出格式）
+├── public/                       前端源码（两个后端共用；改这里 build.ps1 会自动重新内嵌）
+│   ├── index.html
+│   ├── app.js
+│   └── styles.css
+├── native/                       Windows exe 版（C# / .NET Framework 4.8 / WinForms）
+│   ├── NearbyLanToolbox.csproj   构建工程
 │   ├── Server.cs                 内嵌 HTTP 服务 + 程序入口（Program.Main）
 │   ├── MainForm.cs               WinForms 主窗体、托盘、二维码弹窗
 │   ├── WebViewRuntime.cs         内嵌依赖加载（AssemblyResolve）与原生加载器释放
 │   ├── EmbeddedAssets.g.cs       自动生成：内嵌的页面/脚本/样式（勿手工编辑）
 │   └── app.ico                   程序图标
-├── public/                       前端源码（改这里，build.ps1 会自动重新内嵌）
-│   ├── index.html
-│   ├── app.js
-│   └── styles.css
-├── server.js                     Node.js 版后端（备用运行方式，功能少于 exe 版）
-├── package.json
 ├── tools/
-│   ├── fetch-deps.ps1            还原依赖到 deps\
-│   └── embed-assets.ps1          重新生成 EmbeddedAssets.g.cs（build.ps1 已自动调用）
-└── deps/                         构建时生成，不入库
+│   ├── fetch-deps.ps1            还原 Windows 构建依赖到 deps\
+│   ├── embed-assets.ps1          重新生成 EmbeddedAssets.g.cs（build.ps1 已自动调用）
+│   ├── test-arp-parser.js        邻居表解析测试（含 macOS / Linux 真实样本）
+│   └── test-access.js            访问密码与授权判定测试
+├── docs/screenshots/             界面截图
+├── package.json
+└── deps/                         Windows 构建时生成，不入库
 ```
 
-> **关于 `server.js`**：早期留下的 Node.js 版后端，可脱离 .NET 运行，但**功能少于 exe 版** ——
-> 未实现聊天室与访问密码，设备列表在非 Windows 系统上取不到（ARP 输出格式不同）。
-> 保留仅供参考，目前不推荐使用。
+> **关于两个后端**：`native/` 是 Windows 单文件 exe 版（C# / WinForms），`server.js` 是跨平台
+> Node.js 版。两者提供**同一套 HTTP 接口**、共用 `public/` 下的同一份前端，行为保持一致，
+> 区别只在运行方式 —— exe 版带原生窗口与系统托盘，Node 版是命令行程序、界面用浏览器打开。
+>
+> 跑一遍测试可以验证跨平台解析与授权逻辑：
+>
+> ```bash
+> npm test        # 等价于 node tools/test-arp-parser.js && node tools/test-access.js
+> ```
 
 ## 单文件是怎么做出来的
 
@@ -225,12 +321,23 @@ NearbyLanToolbox/
 检查 `WebViewRuntime.cs` 里的资源名字符串与 csproj 的 `LogicalName` 是否逐字一致。
 
 **端口 8787 被占用**
-运行 `stop.bat`，或 `netstat -ano | findstr 8787` 找到 PID 后手动结束。
+exe 版运行 `stop.bat`；Node 版换个端口：`node server.js --port 8888`。
+或用 `netstat -ano | findstr 8787`（macOS / Linux：`lsof -i :8787`）找到 PID 后手动结束。
+
+**macOS 上手机连不上**
+第一次启动时 macOS 会询问「是否允许 `node` 接受传入的网络连接」，选**允许**。
+若误点拒绝，到「系统设置 → 网络 → 防火墙 → 选项」把 `node` 改为允许传入连接。
+
+**Mac 上设备列表为空**
+设备列表读的是本机 ARP 缓存（近期通信过的设备），刚开机或没和其他设备通信过时会是空的。
+先从手机访问一次工具箱，再去点「重新扫描」。
 
 ## 系统要求与注意事项
 
 - 支持 32 位和 64 位 Windows，需要 Microsoft Edge WebView2 Runtime。
   Windows 11 和大多数仍在更新的 Windows 10 通常已经自带。
+- macOS / Linux 走 Node.js 版，需要 Node.js 18 或更高；Windows 两种方式都能用。
+- macOS 首次运行需在系统弹窗中允许 `node` 接受传入连接，否则其他设备连不上。
 - Windows 首次运行时，防火墙可能询问是否允许访问，请仅勾选"专用网络"。
 - EXE 当前未做数字签名；SmartScreen 提示未知发布者时，请确认文件来源后再运行。
 - 未启用访问密码时，所有打开地址的局域网设备都能操作共享内容，请只在可信网络中运行。
