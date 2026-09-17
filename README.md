@@ -6,6 +6,24 @@
 界面用 WebView2 承载，整个程序编译为**单个 exe**，不需要安装 Node.js，不会弹出控制台黑框，
 也不会自动打开外部浏览器。
 
+## 下载
+
+不想自己编译的话，直接拿现成的：
+
+**[⬇ 下载 NearbyLanToolbox.exe](https://github.com/TuTuBug/NearbyLanToolbox/releases/latest/download/NearbyLanToolbox.exe)**
+—— 单文件绿色版，约 1.5 MB，双击即用，无需安装。
+
+历史版本见 [Releases](https://github.com/TuTuBug/NearbyLanToolbox/releases)。
+
+运行环境：
+
+- Windows 10 1809+ / Windows 11
+- .NET Framework 4.8（Win10 1903+ 与 Win11 已内置）
+- WebView2 Runtime（Win11 及多数 Win10 已内置；若启动提示缺失，装一次
+  [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 即可）
+
+> 想自己编译？见下方[构建](#从源码构建)。
+
 ## 功能
 
 - 共享剪贴板（SSE 实时同步，并带心跳轮询回退）
