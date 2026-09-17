@@ -274,6 +274,28 @@ outputs\NearbyLanToolbox.exe
 powershell -ExecutionPolicy Bypass -File tools\embed-assets.ps1
 ```
 
+### 源码文件必须带 UTF-8 BOM（改代码前请先看这段）
+
+`native\*.cs` 和 `*.csproj` 里都有中文，这些文件**必须是带 BOM 的 UTF-8**。
+
+原因：csc 读取**无 BOM** 的源文件时，会按**当前系统的 ANSI 代码页**解码，而不是 UTF-8：
+
+| 构建机器 | 默认代码页 | 结果 |
+|---|---|---|
+| 中文 Windows | CP936（GBK） | UTF-8 中文字节被解成别的字，**编译能过**，只是中文变乱码 |
+| 英文 / 其他区域设置（含 GitHub Actions runner） | CP1252 | UTF-8 中文字节里存在 CP1252 未定义的字节，解码失败 → **编译中断** |
+
+典型的「本机编得过、CI 编不过」陷阱，而且报错位置在编译器内部，很难联想到编码。
+
+工程里已经做了三重防护，新增文件时请注意：
+
+1. `native\*.cs`、`*.csproj` 均已带 BOM
+2. `csproj` 里设置了 `<CodePage>65001</CodePage>`
+3. `tools\embed-assets.ps1` 生成 `EmbeddedAssets.g.cs` 时写的是**带 BOM** 的 UTF-8
+
+如果你新增 C# 源文件并写了中文，记得存成「UTF-8 with BOM」（VS Code 右下角编码处选
+`UTF-8 with BOM` 保存）。
+
 ### 单独还原依赖
 
 ```powershell
@@ -284,7 +306,8 @@ powershell -ExecutionPolicy Bypass -File tools\fetch-deps.ps1
 
 - `Microsoft.Web.WebView2` 1.0.2535.41 的托管程序集与 x64/x86 原生加载器
 - `ZXing.Net` 0.16.10
-- .NET Framework 4.8 参考程序集（本机已装 Developer Pack 时自动跳过）
+- .NET Framework 4.8 参考程序集（**始终下载**，不看本机是否装了 Developer Pack ——
+  这样任意机器上的构建输入完全一致）
 
 ## 项目结构
 

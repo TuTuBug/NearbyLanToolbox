@@ -99,9 +99,14 @@ foreach ($a in $assets) {
 [void]$sb.AppendLine("    }")
 [void]$sb.AppendLine("}")
 
-# 用 UTF-8（无 BOM）写出：C# 源文件统一无 BOM，避免编译器告警
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($outFile, $sb.ToString(), $utf8NoBom)
+# 必须写成「带 BOM」的 UTF-8。
+# 原因：csc 读取无 BOM 的源文件时按当前 ANSI 代码页解码 ——
+# 中文 Windows 上是 GBK，恰好能凑合解开（中文变乱码但能编译）；
+# 而英文区域设置的机器（如 CI runner）用 CP1252，UTF-8 中文字节里存在
+# CP1252 未定义的字节，直接解码失败并中断编译。
+# 本文件生成的内容含中文注释，所以必须带 BOM，否则「本机编得过、CI 编不过」。
+$utf8WithBom = New-Object System.Text.UTF8Encoding($true)
+[System.IO.File]::WriteAllText($outFile, $sb.ToString(), $utf8WithBom)
 
 Write-Host ""
 Write-Host "已生成：$outFile" -ForegroundColor Green
