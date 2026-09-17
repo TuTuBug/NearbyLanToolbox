@@ -25,6 +25,10 @@ jobs:
   windows-exe:
     name: 构建 Windows exe
     runs-on: windows-latest
+    # exe 构建失败不应该挡住 mac / linux 发布。
+    # 失败原因靠「把构建拆成三步」定位：每一步的成败在页面上直接可见，
+    # 不依赖日志（Actions 的日志接口对公开仓库也要求认证，外部拿不到）。
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +36,8 @@ jobs:
         shell: powershell
         run: |
           Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
+          Write-Host "OS: $((Get-CimInstance Win32_OperatingSystem).Caption)"
+          Write-Host "区域设置代码页: $((Get-Culture).TextInfo.ANSICodePage)"
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           if (Test-Path $vswhere) {
             & $vswhere -latest -products * -property installationVersion
@@ -42,35 +48,55 @@ jobs:
           $refPack = "${env:ProgramFiles(x86)}\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8"
           Write-Host "net48 Developer Pack 存在: $(Test-Path $refPack)"
 
-      # 注意：用 Windows PowerShell 5.1（powershell）而不是 pwsh 7。
-      # 本项目构建脚本一直在 5.1 下开发验证，且 fetch-deps.ps1 依赖
-      # System.Net.WebClient + System.IO.Compression，跨运行时行为差异会带来额外风险。
-      - name: 编译单文件 exe
+      # 注意：用系统自带的 Windows PowerShell 5.1（powershell），不是 PowerShell 7。
+      # 本项目构建脚本一直在 5.1 下开发验证，fetch-deps 依赖 System.Net.WebClient
+      # 与 System.IO.Compression，跨运行时差异会带来额外变量。
+
+      - name: 1/3 还原依赖
         shell: powershell
         run: |
-          $ErrorActionPreference = "Continue"
-          $log = "build-output.log"
+          $log = "01-fetch-deps.log"
           try {
-            & .\build.ps1 *>&1 | Tee-Object -FilePath $log
+            & .\tools\fetch-deps.ps1 *>&1 | Tee-Object -FilePath $log
+          } catch {
+            ($_ | Out-String) | Add-Content $log
+            Write-Host "===== 依赖还原失败 ====="
+            Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 50 | Write-Host
+            exit 1
+          }
+          foreach ($f in @("deps\zxing.dll", "deps\Microsoft.Web.WebView2.Core.dll", "deps\reference-assemblies\.NETFramework\v4.8\mscorlib.dll")) {
+            if (-not (Test-Path $f)) {
+              Write-Host "缺少 $f"
+              exit 1
+            }
+          }
+
+      - name: 2/3 内嵌前端资源
+        shell: powershell
+        run: |
+          $log = "02-embed-assets.log"
+          try {
+            & .\tools\embed-assets.ps1 *>&1 | Tee-Object -FilePath $log
+          } catch {
+            ($_ | Out-String) | Add-Content $log
+            Write-Host "===== 内嵌前端资源失败 ====="
+            Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 50 | Write-Host
+            exit 1
+          }
+          if (-not (Test-Path "native\EmbeddedAssets.g.cs")) { exit 1 }
+
+      - name: 3/3 编译
+        shell: powershell
+        run: |
+          $log = "03-msbuild.log"
+          try {
+            & .\build.ps1 -SkipDeps *>&1 | Tee-Object -FilePath $log
           } catch {
             ($_ | Out-String) | Add-Content $log
           }
-
           if (Test-Path "outputs\NearbyLanToolbox.exe") { exit 0 }
-
-          Write-Host "===== 构建失败，输出末尾 ====="
-          $lines = @(Get-Content $log -ErrorAction SilentlyContinue)
-          if ($lines.Count -eq 0) { $lines = @("（没有任何输出）") }
-          $lines | Select-Object -Last 60 | ForEach-Object { Write-Host $_ }
-
-          # 把末尾若干行输出成注解：既便于在网页上直接看到，也能通过公开 API 读取
-          $annotations = $lines |
-            Where-Object { $_.Trim() } |
-            Select-Object -Last 15 |
-            ForEach-Object { ($_ -replace "%", "%25") -replace "\r", "" }
-          foreach ($line in $annotations) {
-            Write-Host "::error title=构建失败::$line"
-          }
+          Write-Host "===== 编译失败，输出末尾 ====="
+          Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 60 | Write-Host
           exit 1
 
       - name: 校验产物并记录校验和
@@ -86,43 +112,54 @@ jobs:
           Write-Host "SHA256：$hash"
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: exe
-          if-no-files-found: error
+          if-no-files-found: ignore
           path: |
             outputs/NearbyLanToolbox.exe
             release-checksum.txt
-            build-output.log
+            01-fetch-deps.log
+            02-embed-assets.log
+            03-msbuild.log
 
-      # 构建失败时把日志暴露到两个「无需登录也能读」的地方：
-      #   1) job summary —— 直接显示在 run 页面上
-      #   2) ci-diagnostics 分支 —— 可以用 raw 链接或 API 取全文
+      # 失败时把日志暴露成「无需登录也能读」的形式。
       # 之所以这么绕：Actions 的 job 日志接口对公开仓库也要求认证，
-      # 而注解（::error::）实测容易被截断或忽略。
+      # 而 ::error:: 注解实测容易被忽略或截断。
       - name: 失败诊断
         if: failure()
         shell: powershell
         run: |
-          $log = "build-output.log"
-          $lines = if (Test-Path $log) { @(Get-Content $log) } else { @("（没有生成 build-output.log）") }
-          Write-Host "日志共 $($lines.Count) 行"
+          $combined = @()
+          foreach ($f in @("01-fetch-deps.log", "02-embed-assets.log", "03-msbuild.log")) {
+            if (Test-Path $f) {
+              $combined += "===== $f ====="
+              $combined += @(Get-Content $f)
+            }
+          }
+          if ($combined.Count -eq 0) { $combined = @("（没有生成任何日志）") }
 
           $summaryPath = $env:GITHUB_STEP_SUMMARY
           if ($summaryPath) {
             "## Windows 构建失败日志" | Out-File -FilePath $summaryPath -Append -Encoding utf8
             "" | Out-File -FilePath $summaryPath -Append -Encoding utf8
-            '```' | Out-File -FilePath $summaryPath -Append -Encoding utf8
-            $lines | Select-Object -Last 150 | Out-File -FilePath $summaryPath -Append -Encoding utf8
+            '```text' | Out-File -FilePath $summaryPath -Append -Encoding utf8
+            $combined | Select-Object -Last 200 | Out-File -FilePath $summaryPath -Append -Encoding utf8
             '```' | Out-File -FilePath $summaryPath -Append -Encoding utf8
           }
 
-          $lines | Out-File -FilePath ci-diagnostics.log -Encoding utf8
+          $combined | Out-File -FilePath ci-diagnostics.log -Encoding utf8
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B ci-diagnostics
-          git add -f ci-diagnostics.log
-          git commit -m "CI 构建日志（自动生成，可随时覆盖）"
-          git push -f origin ci-diagnostics
+          try {
+            git checkout -B ci-diagnostics
+            git add -f ci-diagnostics.log
+            git commit -m "CI 构建日志（自动生成，可随时覆盖）"
+            git push -f origin ci-diagnostics
+            Write-Host "日志已推到 ci-diagnostics 分支"
+          } catch {
+            Write-Host "推送诊断分支失败（不影响诊断本身）：$_"
+          }
           exit 0
 
   # ---------- macOS / Linux：打包跨平台发布包 ----------
