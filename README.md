@@ -74,7 +74,7 @@
 ### 构建步骤
 
 ```powershell
-git clone <此仓库地址>
+git clone https://github.com/TuTuBug/NearbyLanToolbox.git
 cd NearbyLanToolbox
 
 # 一条命令搞定：还原依赖 -> 编译
