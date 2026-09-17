@@ -33,6 +33,11 @@
 *.html  text eol=lf
 *.md    text eol=lf
 *.json  text eol=lf
+# CI 配置在 Linux runner 上执行，LF 最稳妥
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.py    text eol=lf
+*.txt   text eol=lf
 
 # Git 自动生成的内容，语言统计不纳入
 native/EmbeddedAssets.g.cs linguist-generated=true

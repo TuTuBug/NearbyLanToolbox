@@ -50,12 +50,23 @@
 
 不想自己编译的话，直接拿现成的：
 
-**[⬇ 下载 NearbyLanToolbox.exe](https://github.com/TuTuBug/NearbyLanToolbox/releases/latest/download/NearbyLanToolbox.exe)**
-—— 单文件绿色版，约 1.5 MB，双击即用，无需安装。
+| 平台 | 下载 | 拿到之后 |
+|---|---|---|
+| **Windows 10 / 11** | **[⬇ NearbyLanToolbox.exe](https://github.com/TuTuBug/NearbyLanToolbox/releases/latest/download/NearbyLanToolbox.exe)** | 单文件绿色版，约 1.5 MB，**双击即用**，无需安装 |
+| **macOS** | **[⬇ NearbyLanToolbox-mac.zip](https://github.com/TuTuBug/NearbyLanToolbox/releases/latest/download/NearbyLanToolbox-mac.zip)** | 解压后**双击 `start-mac.command`**，浏览器自动打开工具箱 |
+| **Linux** | **[⬇ NearbyLanToolbox-linux.tar.gz](https://github.com/TuTuBug/NearbyLanToolbox/releases/latest/download/NearbyLanToolbox-linux.tar.gz)** | 解压后执行 `./start-linux.sh` |
 
 历史版本见 [Releases](https://github.com/TuTuBug/NearbyLanToolbox/releases)。
 
-运行环境：
+macOS / Linux 包唯一的前置条件是 **Node.js 18 或更高**（一次性安装），包本身**零第三方依赖，
+不需要 `npm install`**。连 Node 都没装也没关系：`start-mac.command` 会检测到并自动打开
+Node.js 官网下载页，装好后回到窗口按一下回车，就继续启动。
+
+> 为什么 Mac 上没有像 exe 那样的单文件？
+> macOS 原生的可执行文件必须在 macOS 上编译并做代码签名，Windows 上无法生成。
+> 所以跨平台侧采用「压缩包 + 一键启动脚本」，解压双击即可，实际体验差别不大。
+
+Windows 版运行环境：
 
 - Windows 10 1809+ / Windows 11
 - .NET Framework 4.8（Win10 1903+ 与 Win11 已内置）
@@ -128,12 +139,38 @@
 macOS 与 Linux 使用 Node.js 版后端，**接口与 exe 版完全一致**（文件互传、剪贴板、聊天室、
 设备发现、测速、访问密码都有），前端也是同一份页面。
 
-### 快速开始
+### 快速开始（直接下载版，推荐）
+
+1. 从 [Releases](https://github.com/TuTuBug/NearbyLanToolbox/releases/latest) 下载对应压缩包
+   （macOS 用 `NearbyLanToolbox-mac.zip`，Linux 用 `NearbyLanToolbox-linux.tar.gz`）
+2. 解压出一个 `NearbyLanToolbox` 文件夹
+3. **双击 `start-mac.command`**（Linux 执行 `./start-linux.sh`）
+
+脚本会自动完成这一串事：
+
+```
+检查 Node.js ──没装──► 打开 nodejs.org 下载页 ──► 等你装完，按回车继续
+     │装了
+     ▼
+检查端口是否被占用 ──被占用──► 自动往后找 8788 / 8789…
+     ▼
+启动服务 ──► 等服务就绪 ──► 自动用默认浏览器打开工具箱
+```
+
+首次双击若提示「无法打开，因为来自身份不明的开发者」，在文件上
+**右键 → 打开 → 再点一次「打开」**即可，只需一次。
+
+压缩包里的 `使用说明-必读.txt` 写好了给普通用户的图文步骤（含手机怎么连、
+防火墙怎么放行、怎么后台常驻），可以直接转给同事。
+
+### 从源码运行
 
 ```bash
 git clone https://github.com/TuTuBug/NearbyLanToolbox.git
 cd NearbyLanToolbox
-node server.js
+./start-mac.command      # macOS
+./start-linux.sh         # Linux
+node server.js           # 或直接跑后端
 ```
 
 需要 **Node.js 18 或更高**：
@@ -143,9 +180,8 @@ node server.js
 
 **零第三方依赖，不需要 `npm install`。**
 
-macOS 上也可以直接在「访达」里**双击 `start-mac.command`**，它会检查 Node 环境、
-给出安装指引（未装时）并启动服务。首次双击若提示「来自身份不明的开发者」，
-在文件上右键 → 打开 → 再点「打开」即可，只需一次。
+> 启动脚本在双击场景下会额外补上 `/usr/local/bin`、`/opt/homebrew/bin` 等路径，
+> 避免出现「终端里能跑、双击却说找不到 node」的情况。
 
 ### 命令行选项
 
@@ -256,7 +292,9 @@ powershell -ExecutionPolicy Bypass -File tools\fetch-deps.ps1
 NearbyLanToolbox/
 ├── build.ps1                     一键构建 Windows exe（还原依赖 + 内嵌前端 + 编译）
 ├── start.bat / stop.bat          Windows 启动 / 停止（停止按端口 8787 结束进程）
-├── start-mac.command             macOS 双击启动（检查 Node 环境后运行 server.js）
+├── start-mac.command             macOS 双击启动（检查 Node / 端口，自动开浏览器）
+├── start-linux.sh                Linux 启动脚本（同上，终端执行）
+├── 使用说明-必读.txt              面向普通用户的说明，随跨平台发布包一起分发
 ├── server.js                     Node.js 版后端入口（跨平台：macOS / Linux / Windows）
 ├── lib/
 │   ├── access.js                 访问密码与授权判定（与 exe 版共用设置文件格式）
@@ -275,11 +313,30 @@ NearbyLanToolbox/
 ├── tools/
 │   ├── fetch-deps.ps1            还原 Windows 构建依赖到 deps\
 │   ├── embed-assets.ps1          重新生成 EmbeddedAssets.g.cs（build.ps1 已自动调用）
+│   ├── pack-release.py           打包 macOS / Linux 发布包到 outputs/
 │   ├── test-arp-parser.js        邻居表解析测试（含 macOS / Linux 真实样本）
 │   └── test-access.js            访问密码与授权判定测试
+├── .github/workflows/release.yml 打 tag 自动构建三个平台的发布包并建 Release
 ├── docs/screenshots/             界面截图
 ├── package.json
 └── deps/                         Windows 构建时生成，不入库
+```
+
+### 打发布包
+
+```bash
+python tools/pack-release.py          # 同时产出 mac zip 与 linux tar.gz
+python tools/pack-release.py mac      # 只打 macOS 包
+```
+
+产物在 `outputs/`。打包脚本只收运行时必需文件，并**显式写入 Unix 可执行权限位**——
+这一步很关键：缺了它，macOS 解压后 `start-mac.command` 没有可执行权限，双击直接报错。
+
+推送 `v*` 形式的 tag 会触发 GitHub Actions，自动构建 exe + mac zip + linux tar.gz
+并创建 Release，三个平台一次发齐：
+
+```bash
+git tag v1.6.0 && git push origin v1.6.0
 ```
 
 > **关于两个后端**：`native/` 是 Windows 单文件 exe 版（C# / WinForms），`server.js` 是跨平台

@@ -1,0 +1,152 @@
+name: Release
+
+# 打 v* 形式的 tag 时自动发版：Windows exe + macOS zip + Linux tar.gz 一次发齐。
+# 也可以在 Actions 页面手动触发，用于验证构建链路（勾选 dry_run 时不创建 Release）。
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要发布/更新的 tag（如 v1.6.0）"
+        required: true
+      dry_run:
+        description: "只构建，不创建 Release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  # ---------- Windows：编译单文件 exe ----------
+  windows-exe:
+    name: 构建 Windows exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 编译单文件 exe
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: 校验产物并记录校验和
+        shell: pwsh
+        run: |
+          $exe = "outputs/NearbyLanToolbox.exe"
+          if (-not (Test-Path $exe)) { throw "找不到产物 $exe" }
+          $info = Get-Item $exe
+          Write-Host "产物：$exe"
+          Write-Host ("大小：{0:N0} 字节" -f $info.Length)
+          if ($info.Length -lt 500KB) { throw "产物过小，构建可能不完整" }
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  NearbyLanToolbox.exe" | Out-File -Encoding utf8 release-checksum.txt
+          Write-Host "SHA256：$hash"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exe
+          if-no-files-found: error
+          path: |
+            outputs/NearbyLanToolbox.exe
+            release-checksum.txt
+
+  # ---------- macOS / Linux：打包跨平台发布包 ----------
+  unix-packages:
+    name: 打包 macOS / Linux 发布包
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 单元测试（跨平台模块）
+        run: |
+          node tools/test-arp-parser.js
+          node tools/test-access.js
+
+      - name: 打包
+        run: python3 tools/pack-release.py
+
+      - name: 校验压缩包里的可执行权限位
+        run: |
+          python3 - <<'PY'
+          import sys, tarfile, zipfile
+
+          failed = False
+          with zipfile.ZipFile("outputs/NearbyLanToolbox-mac.zip") as z:
+              for info in z.infolist():
+                  if info.filename.endswith((".command", ".sh")):
+                      mode = (info.external_attr >> 16) & 0o777
+                      ok = bool(mode & 0o100)
+                      failed |= not ok
+                      print(f"{'OK ' if ok else 'BAD'} {oct(mode)}  {info.filename}")
+
+          with tarfile.open("outputs/NearbyLanToolbox-linux.tar.gz") as t:
+              for member in t.getmembers():
+                  if member.name.endswith((".command", ".sh")):
+                      ok = bool(member.mode & 0o100)
+                      failed |= not ok
+                      print(f"{'OK ' if ok else 'BAD'} {oct(member.mode)}  {member.name}")
+
+          if failed:
+              sys.exit("压缩包里缺少可执行位，macOS/Linux 用户解压后无法双击启动")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unix
+          if-no-files-found: error
+          path: outputs/*
+
+  # ---------- 汇总发版 ----------
+  release:
+    name: 创建 Release
+    needs: [windows-exe, unix-packages]
+    if: always() && !inputs.dry_run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -e
+          echo "将要发布的 tag：$TAG"
+          ls -la dist
+          if [ -z "$(ls -A dist)" ]; then
+            echo "没有任何构建产物，放弃发布"
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release 已存在，改为覆盖上传产物"
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* \
+              --title "$TAG" \
+              --generate-notes
+          fi
+
+      - name: 结果
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: gh release view "$TAG"
+
+  # dry_run 时的兜底：构建完就直接结束，产物留在 Actions 页面上可下载
+  summary:
+    name: 构建结果（未发布）
+    needs: [windows-exe, unix-packages]
+    if: always() && inputs.dry_run
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "dry_run 模式：构建完成，未创建 Release，产物见上方 Artifacts。"
