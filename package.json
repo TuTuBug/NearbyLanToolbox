@@ -1,6 +1,6 @@
 {
   "name": "nearby-lan-toolbox",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "private": true,
   "description": "局域网文件互传 / 剪贴板同步 / 群聊 / 设备发现 / 测速。Node.js 版后端跨平台运行（macOS / Linux / Windows），Windows 另有单文件 exe 版。",
   "main": "server.js",

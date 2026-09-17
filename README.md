@@ -363,14 +363,21 @@ python tools/pack-release.py mac      # 只打 macOS 包
 并创建 Release，三个平台一次发齐：
 
 ```bash
-git tag v1.7.1 && git push origin v1.7.1
+git tag v1.7.2 && git push origin v1.7.2
 ```
 
 > **不要删除后重建同一个 tag**：已发布的 Release 会跟着 tag 一起消失（本项目踩过这个坑）。
 > 要重新发版就推一个新 tag；推 `main` 只构建、不发版，适合反复验证构建链路。
 >
+> **另一个坑：`gh release create <tag>` 在 tag 不存在时会自动创建一个标签，并指向默认分支
+> 的当前 HEAD。** 如果发版 job 拿到的 tag 名有误（例如引用了不存在的旧标签），就会凭空
+> 多出一个「指向最新代码、但版本号是旧的」标签和 Release —— 内容是对的，名字是错的。
+> 发版后请务必用 `git ls-remote --tags origin` 核对标签，并访问
+> `/releases/tag/<你的版本>` 确认页面存在。
+>
 > 构建日志（含依赖布局、内嵌资源校验、MSBuild 输出）会推到 `ci-logs` 分支的
-> `build.log`，用 raw 地址即可查看，不需要登录 GitHub。
+> `build.log`，用 raw 地址即可查看，不需要登录 GitHub。`ci-logs/README.md` 里记着
+> 最近一次构建的 `ref` 与 `sha`，是排查「这次到底被哪个 ref 触发」最快的入口。
 
 > **关于两个后端**：`native/` 是 Windows 单文件 exe 版（C# / WinForms），`server.js` 是跨平台
 > Node.js 版。两者提供**同一套 HTTP 接口**、共用 `public/` 下的同一份前端，行为保持一致，
