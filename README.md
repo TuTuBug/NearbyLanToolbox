@@ -5,6 +5,8 @@
 [![Downloads](https://img.shields.io/github/downloads/TuTuBug/NearbyLanToolbox/total)](https://github.com/TuTuBug/NearbyLanToolbox/releases)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-2C8EBB)
 
+简体中文 | [English](README.en.md)
+
 **同一 Wi-Fi 下，手机扫个码就能和电脑互传文件。接收端不用装任何 App。**
 
 服务端在本机 `8787` 端口起一个 HTTP 服务，同一 Wi-Fi 下的手机、平板、电脑用浏览器打开
